@@ -4,14 +4,14 @@ import { appActions, selectAccount, selectAccounts, useAppStore } from '../../st
 import { CloudSync, useCloudStatus, type CloudStatusState } from '../../core/services/cloud/cloudSync';
 import { disconnectCloud } from '../../core/services/cloud/supabaseClient';
 import { formatRelativeDate } from '../../core/utils/workout';
+import { formatClock } from '../../core/i18n/clock';
 import { FeedbackService } from '../../core/services/feedback';
 import { Card, ListRow } from '../../components/ui';
 import { signInWithGoogleAndCloud } from '../auth/googleCloud';
 
 function lastCopy(at?: number) {
   if (!at) return 'Aún sin copia';
-  const time = new Date(at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-  return `Última copia: ${formatRelativeDate(at).toLowerCase()}, ${time}`;
+  return `Última copia: ${formatRelativeDate(at).toLowerCase()}, ${formatClock(at)}`;
 }
 
 function describe({ status, lastSyncedAt }: CloudStatusState) {

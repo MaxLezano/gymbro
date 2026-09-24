@@ -256,6 +256,28 @@ export const CloudSync = {
     await CloudSync.syncWithin(ms);
   },
 
+  /**
+   * Deletes this account's backup from the cloud. Pending uploads are dropped
+   * first so a late sync cannot recreate it. Needs a connection and a valid session.
+   */
+  async deleteRemote(): Promise<{ ok: true } | { ok: false; message: string }> {
+    const current = account;
+    if (!supabase || !current?.cloudUserId) return { ok: true };
+    if (pushTimer) clearTimeout(pushTimer);
+    pushTimer = null;
+    await inflight?.catch(() => undefined);
+    if ((await currentCloudUserId()) !== current.cloudUserId) {
+      return { ok: false, message: 'Tu sesión de Google venció. Reconecta el respaldo desde tu perfil e inténtalo de nuevo.' };
+    }
+    try {
+      const { error } = await supabase.from(TABLE).delete().eq('user_id', current.cloudUserId);
+      if (error) throw error;
+      return { ok: true };
+    } catch {
+      return { ok: false, message: 'No pudimos borrar la copia en la nube. Revisa tu conexión e inténtalo de nuevo.' };
+    }
+  },
+
   getStatus: () => statusState,
 };
 

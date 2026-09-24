@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { theme } from '../../core/theme';
 import { appActions, getAppState, selectAccount, selectCustomRoutines, selectProfile, useAppStore } from '../../state/appStore';
@@ -13,6 +13,8 @@ import { StackScreen } from '../../components/layout/TabScreen';
 import { profileFromDraft, useProfileDraft } from './profileDraft';
 import { CloudBackupSection } from './CloudBackupSection';
 import { ActivitySection, BasicsSection, GoalSection, LivePreview, MeasurementsSection, TrainingSection } from './ProfileSections';
+
+const PRIVACY_URL = 'https://maxlezano.github.io/gymbro/privacy.html';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -87,26 +89,40 @@ export function ProfileScreen() {
     );
   };
 
+  const removeAccount = async (cloud: boolean) => {
+    if (!account) return;
+    const result = await appActions.deleteAccount(account.id, { cloud });
+    if (!result.ok) {
+      Alert.alert('No se pudo borrar', result.message);
+      return;
+    }
+    if (account.kind === 'google') await signOutFromGoogle();
+    router.dismissAll();
+    router.replace('/login');
+  };
+
   const confirmDelete = () => {
     if (!account) return;
     FeedbackService.warning();
+    if (!account.cloudUserId) {
+      Alert.alert('Eliminar perfil de este teléfono', 'Se borrarán tu perfil, rutinas, historial y chat del coach. No se puede deshacer.', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => removeAccount(false) },
+      ]);
+      return;
+    }
+    const confirmEverything = () =>
+      Alert.alert('¿Borrar todo?', 'Se borrarán tu perfil, rutinas e historial de este teléfono y de la nube. No podrás recuperarlos.', [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Borrar todo', style: 'destructive', onPress: () => removeAccount(true) },
+      ]);
     Alert.alert(
-      'Eliminar perfil de este teléfono',
-      account.cloudUserId
-        ? 'Se borrarán de este teléfono tu perfil, rutinas, historial y chat del coach. La copia en la nube se conserva: entra con Google para recuperarla.'
-        : 'Se borrarán tu perfil, rutinas, historial y chat del coach. No se puede deshacer.',
+      'Eliminar perfil',
+      'Solo de este teléfono: la copia en la nube se conserva y la recuperas al entrar con Google.\n\nBorrar todo: también se elimina la copia en la nube.',
       [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            if (account.kind === 'google') await signOutFromGoogle();
-            await appActions.deleteAccount(account.id);
-            router.dismissAll();
-            router.replace('/login');
-          },
-        },
+        { text: 'Solo este teléfono', onPress: () => removeAccount(false) },
+        { text: 'Borrar todo', style: 'destructive', onPress: confirmEverything },
       ]
     );
   };
@@ -175,8 +191,15 @@ export function ProfileScreen() {
               {account?.kind === 'local' && !!draft.email && (
                 <ListRow icon="logo-google" title={draft.email} subtitle="Vinculada · toca para desvincular" onPress={unlinkGoogle} />
               )}
+              <ListRow icon="shield-checkmark-outline" title="Privacidad" subtitle="Qué datos usamos y cómo borrarlos" onPress={() => Linking.openURL(PRIVACY_URL)} />
               <ListRow icon="log-out-outline" title="Cerrar sesión" subtitle="Cambia de cuenta o entra con otra" onPress={signOut} />
-              <ListRow icon="trash-outline" title="Eliminar perfil de este teléfono" subtitle="Borra todos sus datos" destructive onPress={confirmDelete} />
+              <ListRow
+                icon="trash-outline"
+                title={account?.cloudUserId ? 'Eliminar perfil' : 'Eliminar perfil de este teléfono'}
+                subtitle={account?.cloudUserId ? 'De este teléfono o también de la nube' : 'Borra todos sus datos'}
+                destructive
+                onPress={confirmDelete}
+              />
             </Card>
           </Section>
 

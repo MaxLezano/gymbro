@@ -151,7 +151,6 @@ async function leaveCurrentAccount() {
 
 export const appActions = {
   async hydrate() {
-    await Accounts.migrateLegacyData();
     const [accounts, currentId] = await Promise.all([Accounts.list(), Accounts.getCurrentId()]);
     const account = accounts.find((item) => item.id === currentId) ?? null;
     if (!account) {
@@ -199,8 +198,13 @@ export const appActions = {
   },
 
   /** Deletes an account and all its data from this device. */
-  async deleteAccount(accountId: string) {
+  async deleteAccount(accountId: string, options?: { cloud?: boolean }): Promise<{ ok: true } | { ok: false; message: string }> {
     const isCurrent = state.account?.id === accountId;
+    // Cloud first: if it fails, nothing is deleted so the athlete can retry.
+    if (options?.cloud && isCurrent) {
+      const result = await CloudSync.deleteRemote();
+      if (!result.ok) return result;
+    }
     if (isCurrent) {
       flushPendingWrites();
       RestNotifications.cancel();
@@ -209,6 +213,7 @@ export const appActions = {
     }
     const accounts = await Accounts.remove(accountId);
     setState((prev) => (isCurrent ? { ...prev, ...EMPTY_DATA, accounts, account: null } : { ...prev, accounts }));
+    return { ok: true };
   },
 
   /**
@@ -378,6 +383,11 @@ export const appActions = {
         sets: log.sets.filter((_, i) => i !== setIndex).map((set, i) => ({ ...set, setNumber: i + 1 })),
       }))
     );
+  },
+
+  /** Rest between sets for one exercise of the current workout. */
+  setExerciseRest(exerciseIndex: number, restSeconds: number) {
+    updateActive((session) => replaceExercise(session, exerciseIndex, (log) => ({ ...log, restSeconds })));
   },
 
   renameWorkout(title: string) {
