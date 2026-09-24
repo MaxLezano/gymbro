@@ -53,7 +53,18 @@
           "color": "#FF9F0A"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "GymBro usa el micrófono para que registres tus series con la voz.",
+          "speechRecognitionPermission": "GymBro reconoce comandos como \"terminé\" durante el entreno.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.tts"
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

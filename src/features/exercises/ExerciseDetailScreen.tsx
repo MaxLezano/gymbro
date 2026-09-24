@@ -136,7 +136,7 @@ export function ExerciseDetailScreen({ exerciseId, prescription }: { exerciseId:
               style={styles.gif}
               contentFit="contain"
               autoplay
-              cachePolicy="memory-disk"
+              cachePolicy="disk"
               accessibilityLabel={`Animación de ${exercise.displayName}`}
             />
           ) : (

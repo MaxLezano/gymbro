@@ -168,7 +168,7 @@ export function parseRepRange(targetReps?: string): { min: number; max: number }
 }
 
 /** Smallest practical jump per equipment (dumbbells usually go 2 kg per hand). */
-function loadStep(equipment?: string): number {
+export function loadStep(equipment?: string): number {
   if (equipment === 'dumbbell') return 2;
   if (equipment === 'kettlebell') return 4;
   return 2.5;
