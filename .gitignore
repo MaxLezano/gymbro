@@ -39,3 +39,13 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# screenshots & captures
+emulator_*.png
+*.screenshot.png
+
+# media generation scratch output
+scripts/media/out/
+
+# local agent tooling
+.atl/
