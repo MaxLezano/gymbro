@@ -5,7 +5,7 @@ import { theme } from '../../core/theme';
 import type { ExperienceLevel, Routine, RoutineExercise } from '../../core/types';
 import { getExercise } from '../../data/catalog';
 import { estimateMinutes } from '../../core/utils/programGenerator';
-import { createId } from '../../core/utils/workout';
+import { createId, formatRest } from '../../core/utils/workout';
 import { appActions, findRoutine, selectProfile, useAppStore } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
 import { AppText, Button, Chip, EmptyState, IconButton, ModalHeader, SegmentedControl } from '../../components/ui';
@@ -207,7 +207,7 @@ export function RoutineBuilderScreen({ editId, fromId }: { editId?: string; from
                       <Chip
                         key={seconds}
                         size="sm"
-                        label={seconds >= 60 ? `${seconds / 60 % 1 === 0 ? seconds / 60 : (seconds / 60).toFixed(1)} min` : `${seconds} s`}
+                        label={formatRest(seconds)}
                         selected={item.restSeconds === seconds}
                         onPress={() => updateItem(index, { restSeconds: seconds })}
                       />

@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { theme } from '../../core/theme';
 import { LEVEL_LABELS, labelTarget } from '../../core/i18n/labels';
+import { formatRest } from '../../core/utils/workout';
 import { getExercise } from '../../data/catalog';
 import { routineCompatibility } from '../../core/utils/equipment';
 import { appActions, findRoutine, isDraftRoutine, selectCustomRoutines, selectProfile, useAppStore } from '../../state/appStore';
@@ -108,7 +109,12 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
                 {index > 0 && <Divider inset={theme.spacing.lg + 52 + theme.spacing.md} />}
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => router.push({ pathname: '/exercise/[id]', params: { id: item.exerciseId } })}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/exercise/[id]',
+                      params: { id: item.exerciseId, sets: String(item.targetSets), reps: item.targetReps, rest: String(item.restSeconds) },
+                    })
+                  }
                   style={({ pressed }) => [styles.exerciseRow, pressed && { backgroundColor: theme.colors.surfaceAlt }]}
                 >
                   <ExerciseThumb uri={exercise?.thumbnailUrl} size={52} />
@@ -117,7 +123,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
                       {exercise?.displayName ?? item.exerciseName ?? item.exerciseId}
                     </AppText>
                     <AppText variant="caption" color="textMuted">
-                      {exercise ? `${labelTarget(exercise.target)} · ` : ''}Descanso {item.restSeconds} s
+                      {exercise ? `${labelTarget(exercise.target)} · ` : ''}Descanso {formatRest(item.restSeconds)}
                     </AppText>
                   </View>
                   <View style={styles.prescription}>

@@ -19,7 +19,7 @@ export function parseTargetReps(targetReps?: string): number {
   return Math.round((numbers[0] + numbers[1]) / 2);
 }
 
-export function createSets(count: number, weightKg: number, reps: number): SetLog[] {
+function createSets(count: number, weightKg: number, reps: number): SetLog[] {
   return Array.from({ length: Math.max(1, count) }, (_, index) => ({
     id: createId('set'),
     setNumber: index + 1,
@@ -150,6 +150,80 @@ export function formatMinutes(totalSeconds: number): string {
 export function formatVolume(kg: number): string {
   if (kg >= 10_000) return `${(kg / 1000).toFixed(1)} t`;
   return `${Math.round(kg).toLocaleString('es-ES')} kg`;
+}
+
+/** 120 -> "2 min", 90 -> "1 min 30 s", 45 -> "45 s" */
+export function formatRest(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (minutes === 0) return `${secs} s`;
+  return secs === 0 ? `${minutes} min` : `${minutes} min ${secs} s`;
+}
+
+/** "6-10" -> { min: 6, max: 10 }, "12" -> { min: 12, max: 12 } */
+export function parseRepRange(targetReps?: string): { min: number; max: number } {
+  const numbers = targetReps?.match(/\d+/g)?.map(Number) ?? [];
+  if (numbers.length === 0) return { min: 8, max: 12 };
+  return { min: Math.min(...numbers.slice(0, 2)), max: Math.max(...numbers.slice(0, 2)) };
+}
+
+/** Smallest practical jump per equipment (dumbbells usually go 2 kg per hand). */
+function loadStep(equipment?: string): number {
+  if (equipment === 'dumbbell') return 2;
+  if (equipment === 'kettlebell') return 4;
+  return 2.5;
+}
+
+const roundTo = (value: number, step: number) => Math.max(step, Math.round(value / step) * step);
+
+export interface LoadSuggestion {
+  kind: 'bodyweight' | 'first' | 'up' | 'down' | 'repeat' | 'estimate';
+  /** Suggested load in kg; null when it is bodyweight or unknown. */
+  weightKg: number | null;
+  /** One short sentence explaining the suggestion. */
+  reason: string;
+}
+
+/**
+ * Double progression: stay on a load until every set reaches the top of the rep
+ * range, then add the smallest step. Below the bottom of the range, go lighter.
+ */
+export function suggestLoad(options: {
+  equipment?: string;
+  targetReps?: string;
+  last?: { weightKg: number; reps: number } | null;
+  oneRepMax?: number;
+}): LoadSuggestion {
+  const { min, max } = parseRepRange(options.targetReps);
+  const step = loadStep(options.equipment);
+  const last = options.last;
+
+  if (options.equipment === 'body weight' && !(last && last.weightKg > 0)) {
+    return {
+      kind: 'bodyweight',
+      weightKg: null,
+      reason: `Con tu peso corporal. Cuando llegues a ${max} repeticiones en todas las series, hazlo más lento o añade lastre.`,
+    };
+  }
+  if (last && last.weightKg > 0) {
+    if (last.reps >= max) {
+      return { kind: 'up', weightKg: last.weightKg + step, reason: `La última vez hiciste ${last.reps} repeticiones con ${last.weightKg} kg, el tope del rango: toca subir.` };
+    }
+    if (last.reps < min) {
+      return { kind: 'down', weightKg: roundTo(last.weightKg * 0.9, step), reason: `La última vez llegaste a ${last.reps} con ${last.weightKg} kg, por debajo de ${min}: baja un poco para hacerlo bien.` };
+    }
+    return { kind: 'repeat', weightKg: last.weightKg, reason: `Mantén ${last.weightKg} kg e intenta hacer una repetición más que la última vez (${last.reps}).` };
+  }
+  if (options.oneRepMax && options.oneRepMax > 0) {
+    // Inverse Brzycki for the middle of the range.
+    const reps = Math.round((min + max) / 2);
+    return { kind: 'estimate', weightKg: roundTo(options.oneRepMax * ((37 - reps) / 36), step), reason: 'Calculado a partir de tu 1RM estimado.' };
+  }
+  return {
+    kind: 'first',
+    weightKg: null,
+    reason: `Primera vez: elige un peso con el que llegues a ${max} repeticiones y sientas que podrías hacer 1 o 2 más. Empieza liviano en la primera serie.`,
+  };
 }
 
 // ---------------------------------------------------------------------------

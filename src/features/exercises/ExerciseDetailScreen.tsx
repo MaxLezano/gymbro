@@ -7,13 +7,85 @@ import { theme } from '../../core/theme';
 import { labelBodyPart, labelEquipment, labelTarget } from '../../core/i18n/labels';
 import { getExercise } from '../../data/catalog';
 import { fitsHomeEquipment } from '../../core/utils/equipment';
-import { estimateOneRepMax, findLastPerformance, formatRelativeDate, personalRecords } from '../../core/utils/workout';
+import { findLastPerformance, formatRelativeDate, formatRest, parseRepRange, personalRecords, suggestLoad, type LoadSuggestion } from '../../core/utils/workout';
 import { appActions, selectActiveWorkout, selectHistory, selectProfile, useAppStore } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
-import { AppText, Badge, Button, Card, EmptyState, ModalHeader, StatTile } from '../../components/ui';
+import { AppText, Badge, Button, Card, Divider, EmptyState, ModalHeader, StatTile } from '../../components/ui';
 import { StackScreen } from '../../components/layout/TabScreen';
 
-export function ExerciseDetailScreen({ exerciseId }: { exerciseId: string }) {
+/** What the routine asks for (present when opened from a routine or a workout). */
+export interface Prescription {
+  sets: number;
+  reps: string;
+  restSeconds?: number;
+}
+
+const LOAD_BADGE: Record<LoadSuggestion['kind'], { label: string; tone: 'accent' | 'success' | 'neutral' } | null> = {
+  up: { label: 'Sube', tone: 'success' },
+  down: { label: 'Baja', tone: 'accent' },
+  repeat: { label: 'Mantén', tone: 'neutral' },
+  estimate: { label: 'Estimado', tone: 'neutral' },
+  bodyweight: null,
+  first: null,
+};
+
+/** "6-10" -> "6 a 10" (sentence) / "6-10" (tile) */
+function repsLabel(reps: string) {
+  const { min, max } = parseRepRange(reps);
+  return min === max ? `${min}` : `${min} a ${max}`;
+}
+function repsShort(reps: string) {
+  const { min, max } = parseRepRange(reps);
+  return min === max ? `${min}` : `${min}-${max}`;
+}
+
+function PrescriptionCard({ prescription, suggestion }: { prescription?: Prescription; suggestion: LoadSuggestion }) {
+  const badge = LOAD_BADGE[suggestion.kind];
+  const weight = suggestion.weightKg != null ? `${suggestion.weightKg} kg` : suggestion.kind === 'bodyweight' ? 'Peso corporal' : 'A tu elección';
+  return (
+    <Card style={styles.plan}>
+      {prescription && (
+        <>
+          <View style={styles.planTitle}>
+            <Ionicons name="flag-outline" size={18} color={theme.colors.primary} />
+            <AppText variant="headline">Tu objetivo</AppText>
+          </View>
+          <AppText variant="body" color="textSecondary">
+            Haz {prescription.sets} {prescription.sets === 1 ? 'serie' : 'series'} de {repsLabel(prescription.reps)} repeticiones
+            {prescription.restSeconds ? `. Descansa ${formatRest(prescription.restSeconds)} entre series.` : '.'}
+          </AppText>
+          <View style={styles.planTiles}>
+            <StatTile label="Series" value={prescription.sets} icon="layers-outline" style={styles.flex} />
+            <StatTile label="Reps" value={repsShort(prescription.reps)} icon="repeat-outline" style={styles.flex} />
+            {prescription.restSeconds ? <StatTile label="Descanso" value={formatRest(prescription.restSeconds)} icon="timer-outline" style={styles.flex} /> : null}
+          </View>
+          <Divider />
+        </>
+      )}
+      <View style={styles.loadRow}>
+        <View style={styles.flex}>
+          <AppText variant="caption" color="textMuted">
+            Peso sugerido
+          </AppText>
+          <AppText variant="title" style={styles.loadValue}>
+            {weight}
+          </AppText>
+        </View>
+        {badge && <Badge label={badge.label} tone={badge.tone} />}
+      </View>
+      <AppText variant="subhead" color="textSecondary">
+        {suggestion.reason}
+      </AppText>
+      {prescription && (
+        <AppText variant="caption" color="textMuted">
+          Una repetición es un movimiento completo; una serie, varias repeticiones seguidas sin parar.
+        </AppText>
+      )}
+    </Card>
+  );
+}
+
+export function ExerciseDetailScreen({ exerciseId, prescription }: { exerciseId: string; prescription?: Prescription }) {
   const exercise = getExercise(exerciseId);
   const profile = useAppStore(selectProfile);
   const history = useAppStore(selectHistory);
@@ -35,6 +107,14 @@ export function ExerciseDetailScreen({ exerciseId }: { exerciseId: string }) {
   }
 
   const atHome = fitsHomeEquipment(exercise, profile.homeEquipment);
+  const suggestion = suggestLoad({
+    equipment: exercise.equipment,
+    targetReps: prescription?.reps,
+    last: stats.last,
+    oneRepMax: stats.record?.bestOneRepMax,
+  });
+  // Outside a routine only show the load card when there is history to base it on.
+  const showPlan = !!prescription || !!stats.last || !!stats.record;
   const alreadyInWorkout = activeWorkout?.exercises.some((log) => log.exerciseId === exercise.id);
 
   const handlePrimary = () => {
@@ -80,6 +160,8 @@ export function ExerciseDetailScreen({ exerciseId }: { exerciseId: string }) {
           </AppText>
         )}
 
+        {showPlan && <PrescriptionCard prescription={prescription} suggestion={suggestion} />}
+
         {(stats.last || stats.record) && (
           <View style={styles.statsRow}>
             {stats.last && (
@@ -124,12 +206,6 @@ export function ExerciseDetailScreen({ exerciseId }: { exerciseId: string }) {
           )}
         </Card>
 
-        {stats.last && (
-          <AppText variant="caption" color="textMuted" align="center">
-            Próximo objetivo: {stats.last.weightKg}×{stats.last.reps + 1} o {stats.last.weightKg + 2.5}×{stats.last.reps} kg
-            {' '}(1RM ≈ {estimateOneRepMax(stats.last.weightKg, stats.last.reps)} kg)
-          </AppText>
-        )}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -186,6 +262,26 @@ const styles = StyleSheet.create({
   },
   steps: {
     gap: theme.spacing.md,
+  },
+  plan: {
+    gap: theme.spacing.md,
+  },
+  planTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  planTiles: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  loadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  loadValue: {
+    fontWeight: '800',
   },
   stepsTitle: {
     marginBottom: theme.spacing.xs,

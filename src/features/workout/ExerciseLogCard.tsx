@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { theme } from '../../core/theme';
 import { labelTarget } from '../../core/i18n/labels';
+import { formatRest } from '../../core/utils/workout';
 import { getExercise } from '../../data/catalog';
 import type { SetLog, WorkoutExerciseLog } from '../../core/types';
 import { appActions } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
-import { AppText, Button, IconButton } from '../../components/ui';
+import { AppText, Button, Chip, IconButton } from '../../components/ui';
 import { ExerciseThumb } from '../exercises/ExerciseThumb';
 import { NumberInput } from './NumberInput';
 
@@ -19,6 +20,9 @@ interface ExerciseLogCardProps {
   previousSets: SetLog[] | null;
   onSetCompleted: (exerciseIndex: number, restSeconds: number) => void;
 }
+
+/** Quick rest presets: short for isolation/circuits, long for heavy compound lifts. */
+const REST_PRESETS = [30, 45, 60, 90, 120, 150, 180];
 
 const SetRow = React.memo(function SetRow({
   set,
@@ -117,6 +121,8 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
   const isBodyweight = exercise?.equipment === 'body weight';
   const done = log.sets.filter((set) => set.completed).length;
   const allDone = done === log.sets.length && log.sets.length > 0;
+  const [editingRest, setEditingRest] = useState(false);
+  const rest = log.restSeconds ?? 90;
 
   const openMenu = () => {
     const actions = [
@@ -138,7 +144,14 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Ver técnica de ${log.exerciseName}`}
-          onPress={() => router.push({ pathname: '/exercise/[id]', params: { id: log.exerciseId } })}
+          onPress={() =>
+            router.push({
+              pathname: '/exercise/[id]',
+              params: log.targetReps
+                ? { id: log.exerciseId, sets: String(log.sets.length), reps: log.targetReps, rest: String(log.restSeconds ?? 90) }
+                : { id: log.exerciseId },
+            })
+          }
           style={styles.headerMain}
         >
           <ExerciseThumb uri={exercise?.thumbnailUrl} size={48} />
@@ -147,11 +160,7 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
               {log.exerciseName}
             </AppText>
             <AppText variant="caption" color="textMuted" numberOfLines={2}>
-              {[
-                exercise ? labelTarget(exercise.target) : null,
-                log.targetReps ? `Objetivo ${log.targetReps} reps` : null,
-                `Descanso ${log.restSeconds ?? 90} s`,
-              ]
+              {[exercise ? labelTarget(exercise.target) : null, log.targetReps ? `Objetivo ${log.targetReps} reps` : null]
                 .filter(Boolean)
                 .join(' · ')}
             </AppText>
@@ -159,6 +168,42 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
         </Pressable>
         <IconButton icon="ellipsis-horizontal" size={36} onPress={openMenu} accessibilityLabel={`Opciones de ${log.exerciseName}`} />
       </View>
+
+      <View style={styles.restBar}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Descanso ${formatRest(rest)}. Toca para cambiarlo`}
+          accessibilityState={{ expanded: editingRest }}
+          hitSlop={6}
+          onPress={() => {
+            FeedbackService.lightTap();
+            setEditingRest((value) => !value);
+          }}
+          style={({ pressed }) => [styles.restPill, editingRest && styles.restPillOpen, pressed && styles.checkPressed]}
+        >
+          <Ionicons name="timer-outline" size={15} color={theme.colors.primary} />
+          <AppText variant="caption" color="textSecondary" style={styles.bold}>
+            Descanso {formatRest(rest)}
+          </AppText>
+          <Ionicons name={editingRest ? 'chevron-up' : 'chevron-down'} size={14} color={theme.colors.textMuted} />
+        </Pressable>
+      </View>
+      {editingRest && (
+        <View style={styles.restPresets}>
+          {REST_PRESETS.map((seconds) => (
+            <Chip
+              key={seconds}
+              size="sm"
+              label={formatRest(seconds)}
+              selected={seconds === rest}
+              onPress={() => {
+                appActions.setExerciseRest(index, seconds);
+                setEditingRest(false);
+              }}
+            />
+          ))}
+        </View>
+      )}
 
       <View style={styles.tableHeader}>
         <AppText variant="overline" color="textMuted" style={styles.headSet}>
@@ -220,6 +265,34 @@ const styles = StyleSheet.create({
   headerTexts: {
     flex: 1,
     gap: 2,
+  },
+  restBar: {
+    flexDirection: 'row',
+    paddingHorizontal: theme.spacing.md,
+    marginTop: -theme.spacing.xs,
+    marginBottom: theme.spacing.md,
+  },
+  restPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: theme.colors.border,
+  },
+  restPillOpen: {
+    borderColor: theme.colors.primaryBorder,
+  },
+  restPresets: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    marginTop: -theme.spacing.xs,
+    marginBottom: theme.spacing.md,
   },
   tableHeader: {
     flexDirection: 'row',
