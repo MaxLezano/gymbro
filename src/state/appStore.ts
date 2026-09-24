@@ -151,6 +151,8 @@ async function leaveCurrentAccount() {
 
 export const appActions = {
   async hydrate() {
+    // A fresh launch has no running rest timer: any pending alarm is left over from a killed app.
+    RestNotifications.cancel();
     const [accounts, currentId] = await Promise.all([Accounts.list(), Accounts.getCurrentId()]);
     const account = accounts.find((item) => item.id === currentId) ?? null;
     if (!account) {
@@ -190,7 +192,7 @@ export const appActions = {
   /** Leaves the current account; its data stays on the device for next time. */
   async signOut() {
     flushPendingWrites();
-    RestNotifications.cancel();
+    RestNotifications.cancel({ dismissShown: true });
     await leaveCurrentAccount();
     await Accounts.setCurrent(null);
     const accounts = await Accounts.list();
@@ -207,7 +209,7 @@ export const appActions = {
     }
     if (isCurrent) {
       flushPendingWrites();
-      RestNotifications.cancel();
+      RestNotifications.cancel({ dismissShown: true });
       await CloudSync.attach(null);
       await disconnectCloud();
     }

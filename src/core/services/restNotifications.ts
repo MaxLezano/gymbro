@@ -2,7 +2,6 @@ import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 
 const CHANNEL_ID = 'rest-timer';
-let scheduledId: string | null = null;
 let setupDone = false;
 let permissionAsked = false;
 
@@ -47,33 +46,51 @@ async function ensurePermission(): Promise<boolean> {
   return requested.granted;
 }
 
+// Schedule/cancel run one at a time. Without this, a cancel that lands while a
+// schedule is still awaiting the permission leaves an orphan alarm behind
+// (e.g. deleting the account mid-rest, or tapping +15 s several times).
+let queue: Promise<void> = Promise.resolve();
+const enqueue = (task: () => Promise<void>) => {
+  queue = queue.then(task, task);
+  return queue;
+};
+
+/** Rest alarms are the only notifications the app schedules, so clearing all of them is safe. */
+async function clearAll() {
+  await Notifications.cancelAllScheduledNotificationsAsync().catch(() => undefined);
+}
+
 export const RestNotifications = {
-  async schedule(endsAt: number, nextLabel?: string) {
-    try {
-      setup();
-      await this.cancel();
-      if (!(await ensurePermission())) return;
-      // Measure after the permission dialog: the athlete may take a while to answer it.
-      const seconds = Math.round((endsAt - Date.now()) / 1000);
-      if (seconds < 2) return;
-      scheduledId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Descanso terminado',
-          body: nextLabel ? `A por la siguiente serie: ${nextLabel}` : 'A por la siguiente serie.',
-          sound: 'default',
-          priority: Notifications.AndroidNotificationPriority.HIGH,
-          data: { url: '/workout' },
-        },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, channelId: CHANNEL_ID },
-      });
-    } catch {
-      // Notifications are a nice-to-have: the in-app timer still works.
-    }
+  schedule(endsAt: number, nextLabel?: string) {
+    return enqueue(async () => {
+      try {
+        setup();
+        await clearAll();
+        if (!(await ensurePermission())) return;
+        // Measure after the permission dialog: the athlete may take a while to answer it.
+        const seconds = Math.round((endsAt - Date.now()) / 1000);
+        if (seconds < 2) return;
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'Descanso terminado',
+            body: nextLabel ? `A por la siguiente serie: ${nextLabel}` : 'A por la siguiente serie.',
+            sound: 'default',
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+            data: { url: '/workout' },
+          },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, channelId: CHANNEL_ID },
+        });
+      } catch {
+        // Notifications are a nice-to-have: the in-app timer still works.
+      }
+    });
   },
 
-  async cancel() {
-    const id = scheduledId;
-    scheduledId = null;
-    if (id) await Notifications.cancelScheduledNotificationAsync(id).catch(() => undefined);
+  /** Cancels pending rest alarms (including orphans from earlier runs) and hides shown ones. */
+  cancel(options?: { dismissShown?: boolean }) {
+    return enqueue(async () => {
+      await clearAll();
+      if (options?.dismissShown) await Notifications.dismissAllNotificationsAsync().catch(() => undefined);
+    });
   },
 };
