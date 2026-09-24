@@ -19,7 +19,8 @@ export interface CoachReply {
   text: string;
   blocks: CoachBlock[];
   suggestions: string[];
-  source: 'online' | 'offline';
+  /** 'scope' = answered locally because the question is outside the coach's job. */
+  source: 'online' | 'offline' | 'scope';
 }
 
 export interface CoachMessage {
@@ -28,6 +29,6 @@ export interface CoachMessage {
   text: string;
   blocks?: CoachBlock[];
   suggestions?: string[];
-  source?: 'online' | 'offline';
+  source?: CoachReply['source'];
   createdAt: number;
 }

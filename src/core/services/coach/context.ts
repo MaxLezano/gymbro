@@ -61,7 +61,9 @@ export function selectCandidates(query: ParsedQuery, context: CoachContext, limi
     if (exercise && available(exercise) && picked.size < limit) picked.set(exercise.id, exercise);
   };
 
-  if (query.exerciseId) add(getExercise(query.exerciseId));
+  // The exercise being asked about always goes in, even if it needs gym equipment.
+  const asked = query.exerciseId ? getExercise(query.exerciseId) : undefined;
+  if (asked) picked.set(asked.id, asked);
 
   const focuses: TrainingFocus[] = query.focus ? [query.focus] : ['full_body', 'push', 'pull', 'legs', 'core'];
   for (const focus of focuses) {
@@ -76,6 +78,15 @@ export function selectCandidates(query: ParsedQuery, context: CoachContext, limi
     if (targets.has(exercise.target) && !/v\. \d|\(|pov/.test(exercise.name)) add(exercise);
   }
   return [...picked.values()];
+}
+
+/** Full card of the exercise the athlete asks about: same data the app shows. */
+export function describeExercise(exerciseId: string): string {
+  const exercise = getExercise(exerciseId);
+  if (!exercise) return '';
+  const secondary = exercise.secondaryMuscles.length ? ` | también: ${exercise.secondaryMuscles.map(labelTarget).join(', ')}` : '';
+  const steps = exercise.instructions.slice(0, 6).map((step, i) => `${i + 1}. ${step}`).join('\n');
+  return `${exercise.id} | ${exercise.displayName} | ${labelTarget(exercise.target)} | ${exercise.equipment}${secondary}\nTécnica según la app:\n${steps}`;
 }
 
 export function describeCandidates(candidates: CatalogExercise[]): string {

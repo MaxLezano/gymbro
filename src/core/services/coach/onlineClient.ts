@@ -42,7 +42,10 @@ const clamp = (value: unknown, min: number, max: number, fallback: number) => {
   return Number.isFinite(number) ? Math.max(min, Math.min(max, Math.round(number))) : fallback;
 };
 
-const cleanText = (value: unknown, max = 160) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
+/** Emoji and pictographs: the app shows icons only, whatever the model sends. */
+const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu;
+const cleanText = (value: unknown, max = 160) =>
+  typeof value === 'string' ? value.replace(EMOJI, '').replace(/[ \t]{2,}/g, ' ').trim().slice(0, max) : '';
 
 /** Validates model output against the catalog; anything unknown is dropped. */
 export function normalizeBlocks(raw: RawBlock[] | undefined, location: Routine['targetLocation']): CoachBlock[] {
@@ -186,29 +189,34 @@ export async function askOnline(
         }),
       });
 
-    let response = await request();
-    // The free tier returns sporadic 429/5xx under load: retry once.
-    if (response.status === 429 || response.status >= 500) {
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
-      response = await request();
-    }
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const attempt = async (): Promise<OnlineResult | null> => {
+      let response = await request();
+      // The free tier returns sporadic 429/5xx under load: retry once.
+      if (response.status === 429 || response.status >= 500) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+        response = await request();
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const data = await response.json();
-    const content: string = data?.choices?.[0]?.message?.content ?? '';
-    const parsed = extractJson(content);
-    if (!parsed?.text && !parsed?.blocks?.length) {
-      // A genuine plain-text answer is still useful; broken JSON must never reach the UI.
-      const plain = content.trim();
-      if (plain.length > 20 && !plain.includes('{')) return { text: plain, blocks: [], suggestions: [] };
-      throw new Error('Unparseable response');
-    }
-
-    return {
-      text: cleanText(parsed.text, 2000),
-      blocks: normalizeBlocks(parsed.blocks, location),
-      suggestions: (parsed.suggestions ?? []).map((item) => cleanText(item, 60)).filter(Boolean).slice(0, 3),
+      const data = await response.json();
+      const content: string = data?.choices?.[0]?.message?.content ?? '';
+      const parsed = extractJson(content);
+      if (!parsed?.text && !parsed?.blocks?.length) {
+        // A genuine plain-text answer is still useful; broken JSON must never reach the UI.
+        const plain = content.trim();
+        return plain.length > 20 && !plain.includes('{') ? { text: cleanText(plain, 2000), blocks: [], suggestions: [] } : null;
+      }
+      return {
+        text: cleanText(parsed.text, 2000),
+        blocks: normalizeBlocks(parsed.blocks, location),
+        suggestions: (parsed.suggestions ?? []).map((item) => cleanText(item, 60)).filter(Boolean).slice(0, 3),
+      };
     };
+
+    // The model occasionally breaks its own JSON: one more try before falling back offline.
+    const result = (await attempt()) ?? (await attempt());
+    if (!result) throw new Error('Unparseable response');
+    return result;
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', onAbort);

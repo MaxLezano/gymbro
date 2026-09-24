@@ -1,4 +1,4 @@
-import { normalizeText } from '../../../data/catalog';
+import { EXERCISES, normalizeText } from '../../../data/catalog';
 import type { TrainingFocus } from '../../utils/programGenerator';
 
 export type CoachIntent = 'routine' | 'exercises' | 'technique' | 'nutrition' | 'body' | 'progress' | 'general';
@@ -57,17 +57,68 @@ const EXERCISE_ALIASES: [RegExp, string][] = [
   [/gemelo|pantorrilla|calf/, '0417'],
 ];
 
+/** Anything the coach is for: training, the body, food, recovery, habits and the app. */
+const DOMAIN =
+  /tecnica|consejo|progresion|mejorar|aprender|ensen|explica|entren|ejercici|gym|gimnasio|muscul|fuerza|pesa|kilo|\bkg\b|serie|repeti|descans|cardio|corr(er|o)|camin|trot|bici|nad(ar|o)|estir|calent|movilidad|flexib|lesion|dolor|agujeta|recuper|dorm|sueno|cansad|hidrat|agua|salud|energia|motiva|habito|constancia|disciplina|app|gymbro|perfil|programa|rutina|coach|entrenador|progres|record|nutri|dieta|kcal|panza|barriga|abdomen|cintura|adelgaz|bajar de peso|perder peso|engord|ganar peso|volumen|definic|tonific|postura|cuerpo|fisico|atleta|deport|objetivo|peso|altura|imc|grasa|masa|cuanto (tiempo|dias)|cuantas veces|frecuencia|semana|principiante|nivel|maquina|mancuerna|barra|banco|polea|banda|kettlebell|smith|prensa/;
+/** Greetings and questions about the coach itself are always fine. */
+const SMALL_TALK =
+  /^(hola|buenas|buen dia|hey|gracias|ok|dale|genial|perfecto)\b|quien eres|que (puedes|podes|sabes) hacer|como funcion|ayuda|como estas|(por que|porque) no (me )?(puedes|podes|respondes|contestas)|no me (respondes|contestas)|no entiendo/;
+
+/**
+ * True for questions clearly outside the coach's job (history, politics,
+ * geography, homework...). Checked before calling the model so the chat is
+ * not used as a general-purpose AI.
+ */
+export function isOffTopic(raw: string, query: ParsedQuery = parseQuery(raw)): boolean {
+  const text = normalizeText(raw);
+  if (!text || query.intent !== 'general' || query.focus || query.exerciseId) return false;
+  return !DOMAIN.test(text) && !SMALL_TALK.test(text);
+}
+
+/** Words any real exercise name tends to contain (Spanish and English). */
+const GYM_VOCABULARY =
+  /press|curl|remo|row|sentadilla|squat|peso muerto|deadlift|dominad|chin|flexion|lagartija|push|pull|plancha|plank|zancada|estocada|lunge|elevacion|raise|jalon|fondo|dip|puente|bridge|thrust|hip|crunch|abdominal|extension|apertura|fly|burpee|salto|jump|swing|patada|kick|paseo|walk|carry|farmer|face|clean|snatch|arranque|cargada|step|subida|gemelo|calf|tijera|escalador|mountain|sprint|comba|cuerda|rueda|rollout|good morning|hiperextension|superman|bird|dead bug|bicho|hollow|l-sit|muscle up|pistol|nordic|sissy|rana|frog|mariposa|butterfly|cable|polea|mancuerna|dumbbell|barra|barbell|kettlebell|banda|band|maquina|machine|prensa|leg|arm|shrug|encogimiento|twist|giro|rotacion|pullover|pec|deck|bulgar|goblet|sumo|rumano|romanian|martillo|hammer|frances|skull|tricep|bicep|lateral|frontal|militar|inclinad|declinad|remada|trote|carrera|natacion|bici|estiramiento|stretch/;
+
+/**
+ * Name of the exercise in a technique question when the app cannot identify it
+ * and it does not even look like an exercise ("mono colgado de la cola").
+ * The small free model would invent a description for it, so the app answers
+ * honestly instead. Returns null when the question is fine to send.
+ */
+export function unknownExerciseName(raw: string, query: ParsedQuery = parseQuery(raw)): string | null {
+  if (query.exerciseId) return null;
+  const text = normalizeText(raw);
+  const match = text.match(/(?:tecnica|como (?:se )?hace|como hago|como realizo|como ejecuto)(?:\s+(?:bien|correctamente))?(?:\s+(?:de|del|para|el|la|los|las|un|una|entrenamiento|ejercicio))*\s+(.+)/);
+  const name = match?.[1]?.replace(/[?¿!.,]+/g, '').trim();
+  if (!name || name.length < 3 || GYM_VOCABULARY.test(name)) return null;
+  return name;
+}
+
+export const OFF_TOPIC_REPLY =
+  'Solo puedo ayudarte con tu entrenamiento, tu nutrición y el uso de GymBro. Pregúntame por una rutina, la técnica de un ejercicio o qué comer según tu objetivo.';
+
+/** Catalog names (normalized), longest first so "barbell decline pullover" beats "pullover". */
+let catalogNames: { name: string; id: string }[] | null = null;
+function exerciseByCatalogName(text: string): string | undefined {
+  catalogNames ??= EXERCISES.map((exercise) => ({ name: normalizeText(exercise.displayName), id: exercise.id }))
+    .filter((item) => item.name.length >= 6)
+    .sort((a, b) => b.name.length - a.name.length);
+  return catalogNames.find((item) => text.includes(item.name))?.id;
+}
+
 export function parseQuery(raw: string): ParsedQuery {
   const text = normalizeText(raw);
 
   const focus = FOCUS_PATTERNS.find(([pattern]) => pattern.test(text))?.[1];
-  const exerciseId = EXERCISE_ALIASES.find(([pattern]) => pattern.test(text))?.[1];
+  // Exact catalog names first (e.g. from the exercise screen's "Preguntar"), then Spanish gym slang.
+  const exerciseId = exerciseByCatalogName(text) ?? EXERCISE_ALIASES.find(([pattern]) => pattern.test(text))?.[1];
   const location = /en casa|sin gimnasio|sin gym|home/.test(text) ? 'home' : /gimnasio|\bgym\b/.test(text) ? 'gym' : undefined;
   const minutesMatch = text.match(/(\d{2,3})\s*(min|minutos)/);
   const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : undefined;
 
   let intent: CoachIntent = 'general';
-  if (/rutina|programa|plan de entren|entrenamiento de|sesion|workout|split|arma(me)?\b|genera|dise[nñ]a/.test(text) && !/comida|dieta|menu/.test(text)) {
+  // "técnica de entrenamiento de..." asks how, not for a routine.
+  if (/rutina|programa|plan de entren|entrenamiento de|sesion|workout|split|arma(me)?\b|genera|dise[nñ]a/.test(text) && !/comida|dieta|menu|tecnica|como se hace/.test(text)) {
     intent = 'routine';
   } else if (
     // "como" alone also means "how", so only match it in eating phrases.

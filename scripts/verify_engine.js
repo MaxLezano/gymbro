@@ -87,10 +87,11 @@ const { estimateOneRepMax, parseTargetReps, weekStreak, pluralize, suggestLoad, 
 const { fitsHomeEquipment, requiredHomeEquipment } = src('core/utils/equipment.ts');
 const { generateRoutine, FOCUS_LABELS } = src('core/utils/programGenerator.ts');
 const { SEED_ROUTINES, Accounts, Storage } = src('storage/index.ts');
-const { parseQuery } = src('core/services/coach/intents.ts');
+const { parseQuery, isOffTopic, unknownExerciseName } = src('core/services/coach/intents.ts');
 const { extractJson, normalizeBlocks } = src('core/services/coach/onlineClient.ts');
 const { buildMealPlan } = src('core/services/coach/offlineEngine.ts');
 const { mergeCollection, mergeProfile, trackDeletions, pruneTombstones, TOMBSTONE_TTL_MS } = src('core/services/cloud/merge.ts');
+const { parseVoiceCommand } = src('core/services/voice/commands.ts');
 
 console.log('\n1. Exercise dataset');
 test('1324 exercises with unique ids', () => {
@@ -198,6 +199,19 @@ test('intent parsing', () => {
   assert(parseQuery('¿Qué como antes de entrenar?').intent === 'nutrition', 'nutrition');
   assert(parseQuery('¿Cómo mejoro mi press de banca?').exerciseId === '0025', 'exercise alias');
 });
+test('off-topic questions are refused, fitness ones are not', () => {
+  const blocked = ['Que sabes de las islas malvinas?', 'quién ganó el mundial 2022', 'escribime un poema de amor', 'cuál es la capital de Francia', 'resolveme esta ecuación 2x+3=7'];
+  const allowed = ['hola', 'gracias!', 'cómo bajo la panza', 'qué como antes de entrenar', 'me duele la rodilla al hacer sentadilla', 'cuántas veces por semana entreno', 'dormí mal, entreno igual?', 'qué puedes hacer', 'armame una rutina', 'cómo uso la app', 'Dame consejos de técnica y progresión para Archer Push Up', 'Por qué no me puedes responder lo que te pregunto'];
+  const wrongBlocked = blocked.filter((text) => !isOffTopic(text));
+  const wrongAllowed = allowed.filter((text) => isOffTopic(text));
+  assert(wrongBlocked.length === 0 && wrongAllowed.length === 0, `not blocked: ${wrongBlocked} | wrongly blocked: ${wrongAllowed}`);
+});
+test('made-up exercise names are caught, real ones are not', () => {
+  assert(unknownExerciseName('la técnica de entrenamiento del mono colgado de la cola la') === 'mono colgado de la cola la', String(unknownExerciseName('la técnica de entrenamiento del mono colgado de la cola la')));
+  const real = ['cómo hago bien el press militar', 'técnica de la sentadilla búlgara', 'cómo se hace el paseo del granjero', 'Dame consejos de técnica y progresión para Barbell Decline Pullover', 'técnica del face pull', 'qué como después de entrenar'];
+  const flagged = real.filter((text) => unknownExerciseName(text));
+  assert(flagged.length === 0, `wrongly flagged: ${flagged}`);
+});
 test('tolerant JSON extraction (real malformed output seen in production)', () => {
   assert(extractJson('{"{"text":"hola","blocks":[]}').text === 'hola', 'stray brace');
   assert(extractJson('```json\n{"text":"x"}\n```').text === 'x', 'fenced');
@@ -224,7 +238,31 @@ test('offline meal plan lands within 15% of the protein target', () => {
   near(protein, plan.proteinGrams, plan.proteinGrams * 0.15, 'protein');
 });
 
-console.log('\n7. Cloud backup merge');
+console.log('\n7. Voice commands');
+const cmd = (text) => JSON.stringify(parseVoiceCommand(text));
+test('"terminé" with or without the wake word', () => {
+  assert(cmd('GymBro terminé') === '{"type":"done"}', cmd('GymBro terminé'));
+  assert(cmd('listo') === '{"type":"done"}' && cmd('gym bro ya está') === '{"type":"done"}', 'listo / ya está');
+});
+test('reps and load from the phrase', () => {
+  assert(cmd('hice 8') === '{"type":"done","reps":8}', cmd('hice 8'));
+  assert(cmd('8 con 22,5') === '{"type":"done","reps":8,"weightKg":22.5}', cmd('8 con 22,5'));
+  assert(cmd('terminé diez repeticiones con 20 kilos') === '{"type":"done","reps":10,"weightKg":20}', cmd('terminé diez repeticiones con 20 kilos'));
+  assert(cmd('listo 22 y medio kilos') === '{"type":"done","weightKg":22.5}', cmd('listo 22 y medio kilos'));
+});
+test('rest control: skip, more time, start, repeat', () => {
+  assert(cmd('siguiente') === '{"type":"skip"}', cmd('siguiente'));
+  assert(cmd('más tiempo') === '{"type":"moreRest","seconds":15}', cmd('más tiempo'));
+  assert(cmd('30 segundos más') === '{"type":"moreRest","seconds":30}', cmd('30 segundos más'));
+  assert(cmd('un minuto más') === '{"type":"moreRest","seconds":60}', cmd('un minuto más'));
+  assert(cmd('GymBro vamos') === '{"type":"start"}', cmd('GymBro vamos'));
+  assert(cmd('qué toca') === '{"type":"repeat"}', cmd('qué toca'));
+});
+test('unrelated talk is ignored', () => {
+  assert(parseVoiceCommand('hola cómo andás') === null && parseVoiceCommand('') === null, 'null');
+});
+
+console.log('\n8. Cloud backup merge');
 const doc = (items, updatedAt, deleted = {}) => ({ items: items.map((id) => ({ id })), deleted, updatedAt });
 const ids = (merged) => merged.items.map((item) => item.id).join(',');
 test('two phones: sessions from both survive (union by id)', () => {

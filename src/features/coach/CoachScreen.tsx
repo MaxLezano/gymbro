@@ -20,6 +20,7 @@ import { FeedbackService } from '../../core/services/feedback';
 import { Storage } from '../../storage';
 import { getAppState, selectProfile, useAppStore } from '../../state/appStore';
 import { AppText, IconButton } from '../../components/ui';
+import { useDictation } from './useDictation';
 import { StackScreen } from '../../components/layout/TabScreen';
 import { CoachBlockView } from './CoachBlocks';
 import { RichText } from './RichText';
@@ -82,6 +83,7 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
   const plan = useMemo(() => calculateNutritionPlan(profile), [profile]);
   const [messages, setMessages] = useState<CoachMessage[]>([]);
   const [input, setInput] = useState('');
+  const dictation = useDictation(setInput);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -112,7 +114,8 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
       FeedbackService.lightTap();
 
       const userMessage: CoachMessage = { id: createId('msg'), role: 'user', text, createdAt: Date.now() };
-      const priorHistory = messages;
+      // Drop out-of-scope exchanges (question + refusal) so the model does not copy the refusal pattern.
+      const priorHistory = messages.filter((message, index) => message.source !== 'scope' && messages[index + 1]?.source !== 'scope');
       setMessages((prev) => [...prev, userMessage]);
       setInput('');
       setLoading(true);
@@ -163,7 +166,7 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
   };
 
   const clear = () => {
-    Alert.alert('Nueva conversación', 'Se borrará el historial del chat.', [
+    Alert.alert('Borrar conversación', 'Se borrarán todos los mensajes de este chat.', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Borrar',
@@ -198,7 +201,7 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
             <Ionicons name="sparkles" size={12} color={theme.colors.onPrimary} />
           </View>
           <AppText variant="caption" color="textMuted" style={styles.bold}>
-            Coach{item.source === 'offline' ? ' · sin conexión' : ''}
+            Coach{item.source === 'offline' ? ' · respuesta básica' : ''}
           </AppText>
         </View>
         {!!item.text && <RichText text={item.text} />}
@@ -237,11 +240,11 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
           <View style={styles.status}>
             <View style={[styles.statusDot, lastSource === 'offline' && styles.statusOffline]} />
             <AppText variant="caption" color="textMuted">
-              {lastSource === 'offline' ? 'Modo sin conexión' : `Gratis · ${COACH_MODEL_LABEL}`}
+              {lastSource === 'offline' ? 'Sin IA · respuestas básicas' : `IA gratis · ${COACH_MODEL_LABEL}`}
             </AppText>
           </View>
         </View>
-        <IconButton icon="create-outline" size={38} onPress={clear} disabled={messages.length === 0} accessibilityLabel="Nueva conversación" />
+        <IconButton icon="trash-outline" size={38} onPress={clear} disabled={messages.length === 0} accessibilityLabel="Borrar conversación" />
       </View>
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -286,11 +289,16 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
           />
         )}
 
+        {dictation.error && (
+          <AppText variant="caption" color="textMuted" align="center" style={styles.dictationError}>
+            {dictation.error}
+          </AppText>
+        )}
         <View style={styles.composer}>
           <TextInput
             value={input}
             onChangeText={setInput}
-            placeholder="Pregunta sobre entreno o nutrición…"
+            placeholder={dictation.listening ? 'Escuchando…' : 'Pregunta o toca el micrófono para hablar'}
             placeholderTextColor={theme.colors.textMuted}
             multiline
             maxLength={500}
@@ -300,8 +308,12 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
           />
           {loading ? (
             <IconButton icon="stop" variant="filled" size={44} onPress={stop} accessibilityLabel="Detener respuesta" />
-          ) : (
+          ) : dictation.listening ? (
+            <IconButton icon="mic" variant="primary" size={44} onPress={dictation.stop} accessibilityLabel="Dejar de escuchar" />
+          ) : input.trim() ? (
             <IconButton icon="arrow-up" variant="primary" size={44} onPress={() => send(input)} disabled={!canSend} accessibilityLabel="Enviar" />
+          ) : (
+            <IconButton icon="mic-outline" variant="filled" size={44} onPress={() => dictation.start(input)} accessibilityLabel="Dictar mensaje" />
           )}
         </View>
       </KeyboardAvoidingView>
@@ -450,6 +462,10 @@ const styles = StyleSheet.create({
   starterText: {
     flex: 1,
     fontWeight: '600',
+  },
+  dictationError: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
   },
   composer: {
     flexDirection: 'row',
