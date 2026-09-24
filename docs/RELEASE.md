@@ -54,3 +54,17 @@ Google Auth Platform → Audience → **Publish app**. With only the basic scope
 2. Create the app, then complete *App content*: privacy policy URL, Data safety, account deletion URL (`.../privacy.html#eliminar-cuenta`), health apps declaration, content rating, target audience (13+).
 3. New personal accounts must run a **closed test with at least 12 testers for 14 days** before applying for production.
 4. Upload the AAB (first upload is manual; later `npx eas-cli@latest submit -p android`).
+
+## Sideloaded APK updates (current setup)
+
+Release APKs are signed with GymBro's own key (`plugins/withReleaseSigning.js`), so a newer APK installs over the old one and keeps the app data.
+
+- Keystore: `~/.gymbro/gymbro-release.jks` (alias `gymbro`). Credentials: `GYMBRO_RELEASE_*` in `~/.gradle/gradle.properties`. Neither is in the repo. **Back up both**: without them no future APK can update installed copies.
+- Its SHA-1 must be registered as an Android OAuth client in Google Cloud (package `com.gymbro.fitnessapp`), or Google Sign-In fails in release builds.
+- Every release: bump `expo.version` and `expo.android.versionCode` in `app.json` (Android refuses to install a lower or equal versionCode), then:
+
+```sh
+npx expo prebuild --platform android --no-install
+cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+# -> android/app/build/outputs/apk/release/app-release.apk
+```
