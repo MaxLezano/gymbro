@@ -55,11 +55,6 @@ export function fitsHomeEquipment(exercise: Pick<Exercise, 'name' | 'equipment'>
   return needs.every((item) => item === 'body_weight' || owned.includes(item));
 }
 
-/** Whether the athlete can perform the exercise where they usually train. */
-export function isExerciseAvailable(exercise: Exercise, profile: Pick<UserProfile, 'trainingLocation' | 'homeEquipment'>): boolean {
-  if (profile.trainingLocation !== 'home') return true;
-  return fitsHomeEquipment(exercise, profile.homeEquipment);
-}
 
 export interface RoutineCompatibility {
   available: number;

@@ -10,7 +10,7 @@ const MACROS = [
   { key: 'fat', label: 'Grasas', color: theme.colors.fat, kcalPerGram: 9 },
 ] as const;
 
-export function macroGrams(plan: NutritionMetrics) {
+function macroGrams(plan: NutritionMetrics) {
   return { protein: plan.proteinGrams, carbs: plan.carbGrams, fat: plan.fatGrams };
 }
 

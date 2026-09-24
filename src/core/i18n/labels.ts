@@ -7,7 +7,7 @@ import type {
 } from '../types';
 
 /** Spanish labels for the English taxonomy used by the exercise dataset. */
-export const BODY_PART_LABELS: Record<string, string> = {
+const BODY_PART_LABELS: Record<string, string> = {
   waist: 'Abdomen',
   'upper legs': 'Piernas',
   back: 'Espalda',
@@ -20,7 +20,7 @@ export const BODY_PART_LABELS: Record<string, string> = {
   neck: 'Cuello',
 };
 
-export const TARGET_LABELS: Record<string, string> = {
+const TARGET_LABELS: Record<string, string> = {
   abs: 'Abdominales',
   quads: 'Cuádriceps',
   lats: 'Dorsales',
@@ -73,7 +73,7 @@ export const TARGET_LABELS: Record<string, string> = {
   shins: 'Tibiales',
 };
 
-export const EQUIPMENT_LABELS: Record<string, string> = {
+const EQUIPMENT_LABELS: Record<string, string> = {
   'body weight': 'Peso corporal',
   cable: 'Polea',
   'leverage machine': 'Máquina',

@@ -54,7 +54,7 @@ export const RANGES = {
 type NumericField = keyof typeof RANGES;
 const REQUIRED: NumericField[] = ['age', 'weightKg', 'heightCm'];
 
-export function draftFromProfile(profile: UserProfile): ProfileDraft {
+function draftFromProfile(profile: UserProfile): ProfileDraft {
   return {
     name: profile.name,
     gender: profile.gender,
@@ -79,7 +79,7 @@ export function draftFromProfile(profile: UserProfile): ProfileDraft {
   };
 }
 
-export function validateDraft(draft: ProfileDraft): Partial<Record<NumericField, string>> {
+function validateDraft(draft: ProfileDraft): Partial<Record<NumericField, string>> {
   const errors: Partial<Record<NumericField, string>> = {};
   (Object.keys(RANGES) as NumericField[]).forEach((field) => {
     const raw = draft[field];

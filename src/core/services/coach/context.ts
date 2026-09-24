@@ -17,7 +17,8 @@ export function describeAthlete({ profile, plan }: CoachContext): string {
     .map((id) => HOME_EQUIPMENT_OPTIONS.find((option) => option.id === id)?.label ?? id)
     .join(', ');
   return [
-    `Nombre: ${profile.name || 'Atleta'} | ${profile.gender === 'male' ? 'Hombre' : 'Mujer'}, ${profile.age} años`,
+    // No name or email: the AI provider only gets what it needs to coach.
+    `${profile.gender === 'male' ? 'Hombre' : 'Mujer'}, ${profile.age} años`,
     `Peso ${profile.weightKg} kg, altura ${profile.heightCm} cm, IMC ${plan.bmi}`,
     `Grasa corporal ${plan.bodyFatPercent}% (${plan.bodyFatMethod === 'navy' ? 'U.S. Navy' : 'estimada'}), masa magra ${plan.leanMassKg} kg, FFMI ${plan.ffmi} (${plan.ffmiCategory})`,
     `Objetivo: ${GOAL_LABELS[profile.fitnessGoal].title} | Actividad: ${ACTIVITY_LABELS[profile.activityLevel].title} | Nivel: ${LEVEL_LABELS[profile.experience]}`,

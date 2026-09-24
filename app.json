@@ -27,9 +27,6 @@
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
     "plugins": [
       "expo-image",
       "expo-font",
@@ -55,10 +52,12 @@
           "icon": "./assets/notification-icon.png",
           "color": "#FF9F0A"
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "description": "Tu entrenador de gimnasio: rutinas según tu objetivo y equipo, registro de series, progreso y un coach con IA."
   }
 }

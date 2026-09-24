@@ -1,0 +1,56 @@
+# Releasing GymBro to Google Play
+
+Steps that need the owner's accounts. Code-side setup (`eas.json`, privacy page, in-app account deletion) is already in the repo.
+
+## 1. Blocker: exercise media license
+
+The exercise GIFs/images come from [exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset). Its code and instruction text are MIT, but the media is **© Gym Visual** and needs a [Gym Visual license](https://gymvisual.com/content/3-terms-and-conditions-of-use) for any public app, free or paid. Resolve this before a public release: buy the license, or switch to an openly licensed media set.
+
+## 2. Privacy page (GitHub Pages)
+
+1. Replace `CONTACT_EMAIL` in `docs/privacy.html` with a support address.
+2. GitHub repo → Settings → Pages → Source: *Deploy from a branch*, branch `main`, folder `/docs`.
+3. Check `https://maxlezano.github.io/gymbro/privacy.html` loads (the app links to it from Profile → Privacidad).
+
+GitHub Pages on a free plan needs a public repo. If the repo goes private, host the page elsewhere and update `PRIVACY_URL` in `src/features/profile/ProfileScreen.tsx`.
+
+## 3. EAS build environment
+
+`.env.local` is not uploaded to EAS. Create the public variables once per environment:
+
+```sh
+bunx eas-cli env:set --environment production --name EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID --value <web-client-id> --visibility plaintext
+bunx eas-cli env:set --environment production --name EXPO_PUBLIC_SUPABASE_URL --value <url> --visibility plaintext
+bunx eas-cli env:set --environment production --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value <key> --visibility plaintext
+```
+
+Repeat with `--environment preview` for test APKs. (`npx eas-cli@latest` works the same.)
+
+## 4. Build
+
+```sh
+npx eas-cli@latest init                               # first time: links the project
+npx eas-cli@latest build -p android --profile preview      # APK to test on a phone
+npx eas-cli@latest build -p android --profile production   # AAB for Play
+```
+
+EAS generates and keeps the upload keystore.
+
+## 5. Google Sign-In for release builds
+
+Release builds are signed with different keys than the local debug build, so Google Sign-In fails until their SHA-1s are registered:
+
+1. EAS upload key: `npx eas-cli@latest credentials -p android` → copy the SHA-1.
+2. Play App Signing key: Play Console → your app → Test and release → App integrity → copy the SHA-1.
+3. Google Cloud → Google Auth Platform → Clients → create one **Android** client per SHA-1 (package `com.gymbro.fitnessapp`).
+
+## 6. Google Cloud: leave testing mode
+
+Google Auth Platform → Audience → **Publish app**. With only the basic scopes (email, profile, openid) no verification is required. Avoid uploading a logo in Branding: that triggers brand verification.
+
+## 7. Play Console
+
+1. Developer account (one-time USD 25).
+2. Create the app, then complete *App content*: privacy policy URL, Data safety, account deletion URL (`.../privacy.html#eliminar-cuenta`), health apps declaration, content rating, target audience (13+).
+3. New personal accounts must run a **closed test with at least 12 testers for 14 days** before applying for production.
+4. Upload the AAB (first upload is manual; later `npx eas-cli@latest submit -p android`).

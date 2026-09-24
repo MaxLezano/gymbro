@@ -112,7 +112,7 @@ const FOCUS_MUSCLE_SLOTS: Record<Exclude<FocusMuscle, 'balanced'>, { slots: Slot
   core: { slots: ['core2', 'core3'], focuses: ['full_body', 'lower', 'legs', 'core'] },
 };
 
-export const FOCUS_COVERS: Record<TrainingFocus, CoverKey> = {
+const FOCUS_COVERS: Record<TrainingFocus, CoverKey> = {
   full_body: 'full_body',
   upper: 'upper',
   lower: 'legs',
@@ -228,7 +228,7 @@ export function suggestFocus(recentBodyParts: string[]): TrainingFocus {
  * Splits by weekly frequency. From 2 days up every muscle group is trained at
  * least twice a week, which beats once-a-week for hypertrophy (Schoenfeld et al., 2016).
  */
-export function splitForDays(days: number, level: ExperienceLevel): TrainingFocus[] {
+function splitForDays(days: number, level: ExperienceLevel): TrainingFocus[] {
   switch (Math.max(1, Math.min(6, Math.round(days)))) {
     case 1:
       return ['full_body'];
@@ -246,7 +246,7 @@ export function splitForDays(days: number, level: ExperienceLevel): TrainingFocu
 }
 
 /** Working exercises that fit a session (≈8 min each incl. rest, plus a 5 min warm-up). */
-export function exercisesForMinutes(minutes: number): number {
+function exercisesForMinutes(minutes: number): number {
   return Math.max(3, Math.min(7, Math.round((minutes - 5) / 8)));
 }
 

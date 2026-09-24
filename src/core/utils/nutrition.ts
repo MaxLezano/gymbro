@@ -1,6 +1,6 @@
 import { ActivityLevel, FitnessGoal, Gender, NutritionMetrics, UserProfile } from '../types';
 
-export const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
+const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   sedentary: 1.2,
   light: 1.375,
   moderate: 1.55,
@@ -8,7 +8,7 @@ export const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   extra_active: 1.9,
 };
 
-export const GOAL_CALORIE_ADJUSTMENTS: Record<FitnessGoal, number> = {
+const GOAL_CALORIE_ADJUSTMENTS: Record<FitnessGoal, number> = {
   fat_loss: -400,
   maintenance: 0,
   muscle_gain: 250,
@@ -18,7 +18,7 @@ export const GOAL_CALORIE_ADJUSTMENTS: Record<FitnessGoal, number> = {
 /**
  * Calculates Basal Metabolic Rate (BMR) using the clinical Mifflin-St Jeor equation.
  */
-export function calculateBMR(weightKg: number, heightCm: number, age: number, gender: Gender): number {
+function calculateBMR(weightKg: number, heightCm: number, age: number, gender: Gender): number {
   if (weightKg <= 0 || heightCm <= 0 || age <= 0) return 0;
   const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
   return Math.round(gender === 'male' ? base + 5 : base - 161);
@@ -27,7 +27,7 @@ export function calculateBMR(weightKg: number, heightCm: number, age: number, ge
 /**
  * Calculates Total Daily Energy Expenditure (TDEE).
  */
-export function calculateTDEE(bmr: number, activityLevel: ActivityLevel): number {
+function calculateTDEE(bmr: number, activityLevel: ActivityLevel): number {
   const multiplier = ACTIVITY_MULTIPLIERS[activityLevel] || 1.2;
   return Math.round(bmr * multiplier);
 }
@@ -35,7 +35,7 @@ export function calculateTDEE(bmr: number, activityLevel: ActivityLevel): number
 /**
  * Calculates Body Mass Index (BMI) and official WHO category.
  */
-export function calculateBMI(weightKg: number, heightCm: number): { bmi: number; category: string } {
+function calculateBMI(weightKg: number, heightCm: number): { bmi: number; category: string } {
   if (weightKg <= 0 || heightCm <= 0) return { bmi: 0, category: 'N/A' };
   const heightM = heightCm / 100;
   const bmi = parseFloat((weightKg / (heightM * heightM)).toFixed(1));
@@ -89,7 +89,7 @@ export function calculateBodyFatNavy(
 /**
  * Calculates Body Fat % using the Deurenberg equation (BMI, age, sex regression).
  */
-export function calculateBodyFatDeurenberg(bmi: number, age: number, gender: Gender): number {
+function calculateBodyFatDeurenberg(bmi: number, age: number, gender: Gender): number {
   if (bmi <= 0 || age <= 0) return 15;
   const sexFactor = gender === 'male' ? 1 : 0;
   // Deurenberg formula: (1.20 * BMI) + (0.23 * Age) - (10.8 * Sex) - 5.4
@@ -100,7 +100,7 @@ export function calculateBodyFatDeurenberg(bmi: number, age: number, gender: Gen
 /**
  * Calculates Normalized Fat-Free Mass Index (FFMI) (Kouri et al., 1995).
  */
-export function calculateFFMI(
+function calculateFFMI(
   leanMassKg: number,
   heightCm: number,
   gender: Gender
@@ -133,7 +133,7 @@ export function calculateFFMI(
 /**
  * Calculates target athletic weight preserving current lean mass at desired body fat %.
  */
-export function calculateTargetAthleticWeight(
+function calculateTargetAthleticWeight(
   leanMassKg: number,
   targetBodyFatPercent: number
 ): number {
@@ -146,7 +146,7 @@ export function calculateTargetAthleticWeight(
 /**
  * Calculates recommended daily hydration in liters based on weight and activity.
  */
-export function calculateHydration(weightKg: number, activityLevel: ActivityLevel): number {
+function calculateHydration(weightKg: number, activityLevel: ActivityLevel): number {
   const baseLiters = weightKg * 0.035;
   const activityBonus: Record<ActivityLevel, number> = {
     sedentary: 0.2,

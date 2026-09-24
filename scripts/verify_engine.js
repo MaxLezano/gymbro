@@ -83,7 +83,7 @@ const near = (actual, expected, tolerance, label) =>
 // --- Modules under test ------------------------------------------------------
 const { calculateNutritionPlan, calculateBodyFatNavy } = src('core/utils/nutrition.ts');
 const { EXERCISES, getExercise } = src('data/catalog.ts');
-const { estimateOneRepMax, parseTargetReps, weekStreak, pluralize } = src('core/utils/workout.ts');
+const { estimateOneRepMax, parseTargetReps, weekStreak, pluralize, suggestLoad, formatRest } = src('core/utils/workout.ts');
 const { fitsHomeEquipment, requiredHomeEquipment } = src('core/utils/equipment.ts');
 const { generateRoutine, FOCUS_LABELS } = src('core/utils/programGenerator.ts');
 const { SEED_ROUTINES, Accounts, Storage } = src('storage/index.ts');
@@ -133,6 +133,23 @@ test('target reps parsing', () => {
   assert(parseTargetReps('8-12') === 10 && parseTargetReps('20') === 20 && parseTargetReps('Al fallo') === 10, 'parse');
 });
 test('Spanish pluralization', () => assert(pluralize(1, 'serie') === '1 serie' && pluralize(3, 'serie') === '3 series', 'plural'));
+test('rest labels', () => assert(formatRest(120) === '2 min' && formatRest(90) === '1 min 30 s' && formatRest(45) === '45 s', 'rest'));
+test('double progression: top of range -> add the smallest step', () => {
+  const s = suggestLoad({ equipment: 'barbell', targetReps: '6-10', last: { weightKg: 60, reps: 10 } });
+  assert(s.kind === 'up' && s.weightKg === 62.5, JSON.stringify(s));
+  assert(suggestLoad({ equipment: 'dumbbell', targetReps: '10-12', last: { weightKg: 14, reps: 12 } }).weightKg === 16, 'dumbbells +2');
+});
+test('double progression: inside the range keeps the load, below it goes lighter', () => {
+  assert(suggestLoad({ equipment: 'barbell', targetReps: '6-10', last: { weightKg: 60, reps: 8 } }).weightKg === 60, 'repeat');
+  const down = suggestLoad({ equipment: 'barbell', targetReps: '6-10', last: { weightKg: 60, reps: 4 } });
+  assert(down.kind === 'down' && down.weightKg === 55, JSON.stringify(down));
+});
+test('no history: bodyweight, 1RM estimate or first-time guidance', () => {
+  assert(suggestLoad({ equipment: 'body weight', targetReps: '8-12' }).kind === 'bodyweight', 'bodyweight');
+  assert(suggestLoad({ equipment: 'barbell', targetReps: '8', oneRepMax: 100 }).weightKg === 80, 'inverse Brzycki 8 reps ~ 80%');
+  const first = suggestLoad({ equipment: 'cable', targetReps: '10-12' });
+  assert(first.kind === 'first' && first.weightKg === null, 'first time');
+});
 test('week streak counts consecutive weeks', () => {
   const now = new Date('2026-09-24T12:00:00').getTime();
   const day = 86_400_000;
@@ -240,21 +257,7 @@ test('old tombstones expire', () => {
 
 console.log('\n8. Accounts (per-device data spaces)');
 (async () => {
-  await testAsync('legacy data migrates into a first account, keeping the athlete signed in', async () => {
-    memory.clear();
-    memory.set('@gymbro_user_profile', JSON.stringify({ name: 'Max', hasCompletedOnboarding: true }));
-    memory.set(
-      '@gymbro_workout_history',
-      JSON.stringify([{ id: 's1', startedAt: 1, exercises: [{ exerciseId: '0025', sets: [{ completed: true, weightKg: 50, reps: 5 }] }] }])
-    );
-    await Accounts.migrateLegacyData();
-    const [account] = await Accounts.list();
-    assert(account && account.name === 'Max', 'account created');
-    assert((await Accounts.getCurrentId()) === account.id, 'still signed in');
-    assert(!memory.has('@gymbro_user_profile'), 'legacy key removed');
-    const data = await Storage.loadAll();
-    assert(data.profile.name === 'Max' && data.history.length === 1, 'profile and history moved');
-  });
+  memory.clear();
 
   await testAsync('accounts are isolated from each other', async () => {
     await Accounts.setCurrent('google_a@x.com');

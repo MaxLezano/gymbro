@@ -161,22 +161,18 @@ async function writeJson(key: string | null, value: unknown): Promise<void> {
 
 /** Accepts profiles written by older app versions (or the cloud) and fills new fields. */
 export function migrateProfile(stored: Partial<UserProfile>): UserProfile {
-  // Early builds shipped a fake Google link with placeholder identity; drop it.
-  const isPlaceholder = stored.email === 'david.atleta@gmail.com';
-  const rest = { ...stored, email: isPlaceholder ? undefined : stored.email };
-  const name = rest.name === 'David Atleta' || rest.name === 'David (Google)' ? '' : rest.name;
   return {
     ...DEFAULT_PROFILE,
-    ...rest,
-    name: name ?? '',
-    experience: rest.experience ?? 'intermediate',
-    homeEquipment: rest.homeEquipment?.length ? rest.homeEquipment : DEFAULT_PROFILE.homeEquipment,
+    ...stored,
+    name: stored.name ?? '',
+    experience: stored.experience ?? 'intermediate',
+    homeEquipment: stored.homeEquipment?.length ? stored.homeEquipment : DEFAULT_PROFILE.homeEquipment,
   };
 }
 
 /**
- * Older builds saved every set (completed or not) and even empty sessions.
- * Keep only real work so stats, streaks and records stay honest.
+ * Keeps only real work (completed sets, non-empty sessions) so stats, streaks
+ * and records stay honest, whatever the source (disk or cloud backup).
  */
 export function cleanHistory(history: WorkoutSession[]): WorkoutSession[] {
   return history
@@ -262,37 +258,6 @@ export const Accounts = {
     await writeJson(ACCOUNT_KEYS.registry, next);
     if ((await this.getCurrentId()) === accountId) await this.setCurrent(null);
     return next;
-  },
-
-  /**
-   * Builds before accounts stored data under global keys. Move it into a first
-   * local account so existing users keep everything and stay signed in.
-   */
-  async migrateLegacyData(): Promise<void> {
-    const existing = await this.list();
-    if (existing.length > 0) return;
-    const legacyProfile = await readJson<Partial<UserProfile> | null>(KEYS.profile, null);
-    if (!legacyProfile) return;
-
-    const id = `local_${Date.now().toString(36)}`;
-    try {
-      const pairs = await AsyncStorage.multiGet(DATA_KEYS);
-      const present = pairs.filter((pair): pair is [string, string] => pair[1] !== null);
-      await AsyncStorage.multiSet(present.map(([key, value]) => [`${key}:${id}`, value]));
-      await AsyncStorage.multiRemove(DATA_KEYS);
-    } catch {
-      return; // leave legacy data untouched if anything fails
-    }
-    const email = legacyProfile.email && legacyProfile.email !== 'david.atleta@gmail.com' ? legacyProfile.email : undefined;
-    await this.upsert({
-      id,
-      kind: 'local',
-      name: legacyProfile.name && legacyProfile.name !== 'David Atleta' ? legacyProfile.name : 'Mi perfil',
-      email,
-      photoUrl: legacyProfile.photoUrl,
-      lastUsedAt: Date.now(),
-    });
-    await this.setCurrent(id);
   },
 };
 
