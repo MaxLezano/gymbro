@@ -8,7 +8,7 @@ The exercise GIFs/images come from [exercises-dataset](https://github.com/hasane
 
 ## 2. Privacy page (GitHub Pages)
 
-1. Replace `CONTACT_EMAIL` in `docs/privacy.html` with a support address.
+1. Contact address in `docs/privacy.html`: david.lezano@gmail.com (update it if support moves).
 2. GitHub repo → Settings → Pages → Source: *Deploy from a branch*, branch `main`, folder `/docs`.
 3. Check `https://maxlezano.github.io/gymbro/privacy.html` loads (the app links to it from Profile → Privacidad).
 
