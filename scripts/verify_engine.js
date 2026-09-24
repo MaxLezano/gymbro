@@ -90,6 +90,7 @@ const { SEED_ROUTINES, Accounts, Storage } = src('storage/index.ts');
 const { parseQuery } = src('core/services/coach/intents.ts');
 const { extractJson, normalizeBlocks } = src('core/services/coach/onlineClient.ts');
 const { buildMealPlan } = src('core/services/coach/offlineEngine.ts');
+const { mergeCollection, mergeProfile, trackDeletions, pruneTombstones, TOMBSTONE_TTL_MS } = src('core/services/cloud/merge.ts');
 
 console.log('\n1. Exercise dataset');
 test('1324 exercises with unique ids', () => {
@@ -206,7 +207,38 @@ test('offline meal plan lands within 15% of the protein target', () => {
   near(protein, plan.proteinGrams, plan.proteinGrams * 0.15, 'protein');
 });
 
-console.log('\n7. Accounts (per-device data spaces)');
+console.log('\n7. Cloud backup merge');
+const doc = (items, updatedAt, deleted = {}) => ({ items: items.map((id) => ({ id })), deleted, updatedAt });
+const ids = (merged) => merged.items.map((item) => item.id).join(',');
+test('two phones: sessions from both survive (union by id)', () => {
+  assert(ids(mergeCollection(doc(['a', 'b'], 20), doc(['c', 'a'], 10), 100)) === 'a,b,c', 'union keeps order of newer side');
+});
+test('a deletion on one phone is not resurrected by the other', () => {
+  const merged = mergeCollection(doc(['b'], 20, { a: 15 }), doc(['a', 'b'], 10), 100);
+  assert(ids(merged) === 'b' && merged.deleted.a === 15, ids(merged));
+});
+test('same item on both sides: the newer document wins', () => {
+  const local = { items: [{ id: 'r', title: 'old' }], deleted: {}, updatedAt: 10 };
+  const remote = { items: [{ id: 'r', title: 'new' }], deleted: {}, updatedAt: 20 };
+  assert(mergeCollection(local, remote, 100).items[0].title === 'new', 'remote newer');
+});
+test('nothing in the cloud yet: local data is kept as is', () => {
+  assert(ids(mergeCollection(doc(['a'], 0), null, 100)) === 'a', 'kept');
+});
+test('profile: last write wins, fresh install adopts the backup', () => {
+  assert(mergeProfile({ profile: 'phone', updatedAt: 0 }, { profile: 'cloud', updatedAt: 5 }).profile === 'cloud', 'reinstall');
+  assert(mergeProfile({ profile: 'phone', updatedAt: 9 }, { profile: 'cloud', updatedAt: 5 }).profile === 'phone', 'local newer');
+});
+test('deletions become tombstones; re-adding an id clears it', () => {
+  const deleted = trackDeletions(['a', 'b'], ['b'], {}, 7);
+  assert(deleted.a === 7 && !deleted.b, 'a tombstoned');
+  assert(!trackDeletions(['b'], ['a', 'b'], deleted, 8).a, 'a restored');
+});
+test('old tombstones expire', () => {
+  assert(Object.keys(pruneTombstones({ a: 0, b: TOMBSTONE_TTL_MS }, TOMBSTONE_TTL_MS + 1)).join() === 'b', 'a expired');
+});
+
+console.log('\n8. Accounts (per-device data spaces)');
 (async () => {
   await testAsync('legacy data migrates into a first account, keeping the athlete signed in', async () => {
     memory.clear();
@@ -248,6 +280,28 @@ console.log('\n7. Accounts (per-device data spaces)');
     assert(![...memory.keys()].some((key) => key.endsWith(':local_b')), 'data gone');
     assert((await Accounts.getCurrentId()) === null, 'signed out');
     assert(!(await Accounts.list()).some((item) => item.id === 'local_b'), 'removed from registry');
+  });
+
+  await testAsync('sync meta is stored per account and survives a reload', async () => {
+    await Accounts.setCurrent('google_a@x.com');
+    await Storage.saveSyncMeta({ updatedAt: { profile: 5 }, deleted: { customRoutines: { r1: 1 }, history: {} }, knownIds: { customRoutines: [], history: [] } });
+    await Accounts.setCurrent('local_c');
+    assert((await Storage.loadSyncMeta()).updatedAt.profile === undefined, 'fresh meta for another account');
+    await Accounts.setCurrent('google_a@x.com');
+    const meta = await Storage.loadSyncMeta();
+    assert(meta.updatedAt.profile === 5 && meta.deleted.customRoutines.r1 === 1, 'meta kept');
+  });
+
+  await testAsync('local writes notify the sync, silent and signed-out writes do not', async () => {
+    const heard = [];
+    Storage.setWriteListener((kind) => heard.push(kind));
+    await Accounts.setCurrent('google_a@x.com');
+    await Storage.saveHistory([]);
+    await Storage.saveCustomRoutines([], { silent: true });
+    await Accounts.setCurrent(null);
+    await Storage.saveProfile({ name: 'ghost' });
+    Storage.setWriteListener(null);
+    assert(heard.join() === 'history', `heard: ${heard.join()}`);
   });
 
   console.log(`\n${passed} passed, ${failures.length} failed`);

@@ -7,6 +7,7 @@ const KEYS = {
   history: '@gymbro_workout_history',
   activeWorkout: '@gymbro_active_workout',
   coachChat: '@gymbro_coach_chat',
+  syncMeta: '@gymbro_sync_meta',
 } as const;
 
 export const SEED_ROUTINES: Routine[] = [
@@ -158,8 +159,8 @@ async function writeJson(key: string | null, value: unknown): Promise<void> {
   }
 }
 
-/** Accepts profiles written by older app versions and fills new fields. */
-function migrateProfile(stored: Partial<UserProfile>): UserProfile {
+/** Accepts profiles written by older app versions (or the cloud) and fills new fields. */
+export function migrateProfile(stored: Partial<UserProfile>): UserProfile {
   // Early builds shipped a fake Google link with placeholder identity; drop it.
   const isPlaceholder = stored.email === 'david.atleta@gmail.com';
   const rest = { ...stored, email: isPlaceholder ? undefined : stored.email };
@@ -177,7 +178,7 @@ function migrateProfile(stored: Partial<UserProfile>): UserProfile {
  * Older builds saved every set (completed or not) and even empty sessions.
  * Keep only real work so stats, streaks and records stay honest.
  */
-function cleanHistory(history: WorkoutSession[]): WorkoutSession[] {
+export function cleanHistory(history: WorkoutSession[]): WorkoutSession[] {
   return history
     .map((session) => ({
       ...session,
@@ -201,8 +202,8 @@ export interface PersistedState {
 
 /**
  * An account is an isolated data space on this device (profile, routines,
- * history, active workout, coach chat). Google accounts only contribute
- * identity; nothing leaves the phone.
+ * history, active workout, coach chat). The phone is always the source of
+ * truth; accounts with `cloudUserId` also keep a merged backup in Supabase.
  */
 export interface Account {
   id: string;
@@ -210,6 +211,8 @@ export interface Account {
   name: string;
   email?: string;
   photoUrl?: string;
+  /** Supabase user id when the cloud backup is on for this account. */
+  cloudUserId?: string;
   lastUsedAt: number;
 }
 
@@ -297,6 +300,42 @@ export const Accounts = {
 // Per-account data
 // ---------------------------------------------------------------------------
 
+/** Data kinds that are backed up to the cloud. */
+export type BackedUpKind = 'profile' | 'customRoutines' | 'history';
+
+/** Per-account bookkeeping for the cloud backup. */
+export interface SyncMeta {
+  /** Last change time per kind (local edit or adopted remote copy). 0 = never written. */
+  updatedAt: Partial<Record<BackedUpKind, number>>;
+  /** Tombstones for deleted routines and sessions. */
+  deleted: { customRoutines: Record<string, number>; history: Record<string, number> };
+  /** Ids present after the last write, to detect deletions. */
+  knownIds: { customRoutines: string[]; history: string[] };
+  lastSyncedAt?: number;
+}
+
+export const EMPTY_SYNC_META: SyncMeta = {
+  updatedAt: {},
+  deleted: { customRoutines: {}, history: {} },
+  knownIds: { customRoutines: [], history: [] },
+};
+
+type WriteListener = (kind: BackedUpKind, value: unknown) => void;
+let writeListener: WriteListener | null = null;
+
+/**
+ * Saves a backed-up kind. `silent` skips the listener: used when applying data
+ * that came from the cloud, so it is not uploaded straight back.
+ */
+function saveBackedUp<T>(key: string, kind: BackedUpKind) {
+  return async (value: T, options?: { silent?: boolean }) => {
+    const target = keyFor(key);
+    // Notify before awaiting so the listener still sees this account's namespace.
+    if (target && !options?.silent) writeListener?.(kind, value);
+    await writeJson(target, value);
+  };
+}
+
 export const Storage = {
   async loadAll(): Promise<PersistedState> {
     const [profile, customRoutines, history, activeWorkout] = await Promise.all([
@@ -312,10 +351,24 @@ export const Storage = {
       activeWorkout: activeWorkout?.status === 'in_progress' ? activeWorkout : null,
     };
   },
-  saveProfile: (profile: UserProfile) => writeJson(keyFor(KEYS.profile), profile),
-  saveCustomRoutines: (routines: Routine[]) => writeJson(keyFor(KEYS.customRoutines), routines),
-  saveHistory: (history: WorkoutSession[]) => writeJson(keyFor(KEYS.history), history),
+  saveProfile: saveBackedUp<UserProfile>(KEYS.profile, 'profile'),
+  saveCustomRoutines: saveBackedUp<Routine[]>(KEYS.customRoutines, 'customRoutines'),
+  saveHistory: saveBackedUp<WorkoutSession[]>(KEYS.history, 'history'),
   saveActiveWorkout: (session: WorkoutSession | null) => writeJson(keyFor(KEYS.activeWorkout), session),
   loadCoachChat: <T>() => readJson<T[]>(keyFor(KEYS.coachChat), []),
   saveCoachChat: (messages: unknown[]) => writeJson(keyFor(KEYS.coachChat), messages),
+  async loadSyncMeta(): Promise<SyncMeta> {
+    const meta = await readJson<Partial<SyncMeta> | null>(keyFor(KEYS.syncMeta), null);
+    return {
+      updatedAt: meta?.updatedAt ?? {},
+      deleted: { customRoutines: meta?.deleted?.customRoutines ?? {}, history: meta?.deleted?.history ?? {} },
+      knownIds: { customRoutines: meta?.knownIds?.customRoutines ?? [], history: meta?.knownIds?.history ?? [] },
+      lastSyncedAt: meta?.lastSyncedAt,
+    };
+  },
+  saveSyncMeta: (meta: SyncMeta) => writeJson(keyFor(KEYS.syncMeta), meta),
+  /** One listener (the cloud sync) hears about every local write of a backed-up kind. */
+  setWriteListener(listener: WriteListener | null) {
+    writeListener = listener;
+  },
 };

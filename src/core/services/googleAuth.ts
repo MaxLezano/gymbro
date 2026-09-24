@@ -7,7 +7,8 @@ import {
 
 /**
  * Optional "Continuar con Google": fills name and photo from the Google account.
- * No backend and no tokens are stored; the profile still lives only on device.
+ * The ID token is handed to the cloud backup (Supabase) when it is configured;
+ * it is never persisted by the app.
  *
  * Requires an OAuth client in Google Cloud (Android: package com.gymbro.fitnessapp
  * + signing SHA-1, plus a Web client whose id goes in EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID).
@@ -28,6 +29,8 @@ export interface GoogleIdentity {
   name: string;
   email: string;
   photoUrl?: string;
+  /** Short-lived Google ID token (only present when a web client id is configured). */
+  idToken?: string;
 }
 
 export type GoogleSignInResult =
@@ -49,6 +52,7 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
         name: user.givenName ?? user.name ?? '',
         email: user.email,
         photoUrl: user.photo ?? undefined,
+        idToken: response.data.idToken ?? undefined,
       },
     };
   } catch (error) {

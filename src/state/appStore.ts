@@ -2,6 +2,8 @@ import { useSyncExternalStore } from 'react';
 import type { Routine, UserProfile, WorkoutExerciseLog, WorkoutSession } from '../core/types';
 import { Accounts, DEFAULT_PROFILE, SEED_ROUTINES, Storage, type Account } from '../storage';
 import { RestNotifications } from '../core/services/restNotifications';
+import { CloudSync, type LocalData } from '../core/services/cloud/cloudSync';
+import { disconnectCloud } from '../core/services/cloud/supabaseClient';
 import {
   computeVolume,
   createEmptySession,
@@ -119,6 +121,34 @@ const replaceExercise = (
   return { ...session, exercises, totalVolumeKg: computeVolume(exercises) };
 };
 
+/** How long sign-in waits for the backup before opening the app with local data. */
+const SIGN_IN_SYNC_TIMEOUT_MS = 10_000;
+
+// Data merged from the cloud backup lands here: memory first, then disk (silently,
+// so it is not uploaded straight back).
+CloudSync.bind({
+  read: () => ({ profile: state.profile, customRoutines: state.customRoutines, history: state.history }),
+  apply(patch: Partial<LocalData>) {
+    setState((prev) => {
+      const account =
+        patch.profile && prev.account
+          ? { ...prev.account, name: patch.profile.name || prev.account.name, photoUrl: patch.profile.photoUrl ?? prev.account.photoUrl }
+          : prev.account;
+      if (account && account !== prev.account) Accounts.upsert(account);
+      return { ...prev, ...patch, account };
+    });
+    if (patch.profile) Storage.saveProfile(patch.profile, { silent: true });
+    if (patch.customRoutines) Storage.saveCustomRoutines(patch.customRoutines, { silent: true });
+    if (patch.history) Storage.saveHistory(patch.history, { silent: true });
+  },
+});
+
+async function leaveCurrentAccount() {
+  await CloudSync.flush();
+  await CloudSync.attach(null);
+  await disconnectCloud();
+}
+
 export const appActions = {
   async hydrate() {
     await Accounts.migrateLegacyData();
@@ -130,12 +160,19 @@ export const appActions = {
     }
     await Accounts.setCurrent(account.id);
     const persisted = await Storage.loadAll();
+    await CloudSync.attach(account, persisted);
     setState((prev) => ({ ...prev, ...persisted, restTimer: null, accounts, account, hydrated: true }));
+    CloudSync.syncNow();
   },
 
-  /** Opens (or creates) an account's data space and makes it current. */
+  /**
+   * Opens (or creates) an account's data space and makes it current. With the
+   * cloud backup on, it first pulls the backup (bounded wait) so a reinstalled
+   * app comes back with the athlete's data.
+   */
   async signIn(identity: Omit<Account, 'lastUsedAt'>) {
     flushPendingWrites();
+    if (state.account && state.account.id !== identity.id) await leaveCurrentAccount();
     const account: Account = { ...identity, lastUsedAt: Date.now() };
     const accounts = await Accounts.upsert(account);
     await Accounts.setCurrent(account.id);
@@ -145,14 +182,17 @@ export const appActions = {
       persisted.profile.hasCompletedOnboarding || !identity.email
         ? persisted.profile
         : { ...persisted.profile, name: persisted.profile.name || identity.name, email: identity.email, photoUrl: identity.photoUrl };
+    await CloudSync.attach(account, persisted);
     setState((prev) => ({ ...prev, ...persisted, profile, restTimer: null, accounts, account }));
-    return profile;
+    if (account.cloudUserId) await CloudSync.syncWithin(SIGN_IN_SYNC_TIMEOUT_MS);
+    return state.profile;
   },
 
   /** Leaves the current account; its data stays on the device for next time. */
   async signOut() {
     flushPendingWrites();
     RestNotifications.cancel();
+    await leaveCurrentAccount();
     await Accounts.setCurrent(null);
     const accounts = await Accounts.list();
     setState((prev) => ({ ...prev, ...EMPTY_DATA, accounts, account: null }));
@@ -164,9 +204,55 @@ export const appActions = {
     if (isCurrent) {
       flushPendingWrites();
       RestNotifications.cancel();
+      await CloudSync.attach(null);
+      await disconnectCloud();
     }
     const accounts = await Accounts.remove(accountId);
     setState((prev) => (isCurrent ? { ...prev, ...EMPTY_DATA, accounts, account: null } : { ...prev, accounts }));
+  },
+
+  /**
+   * Turns the cloud backup on for the current account, linking it to Google.
+   * This phone's data wins over an older backup (the athlete chose to back it up).
+   */
+  async enableCloudBackup(identity: { name: string; email: string; photoUrl?: string }, cloudUserId: string) {
+    const current = state.account;
+    if (!current) return;
+    const account: Account = { ...current, kind: 'google', email: identity.email, photoUrl: identity.photoUrl ?? current.photoUrl, cloudUserId, lastUsedAt: Date.now() };
+    const accounts = await Accounts.upsert(account);
+    const profile = { ...state.profile, name: state.profile.name || identity.name, email: identity.email, photoUrl: account.photoUrl };
+    setState((prev) => ({ ...prev, account, accounts, profile }));
+    Storage.saveProfile(profile);
+    CloudSync.updateAccount(account);
+    await CloudSync.markAllFresh();
+    await CloudSync.syncNow();
+  },
+
+  /** Stops backing up this account. Data already in the cloud is kept. */
+  async disableCloudBackup() {
+    const current = state.account;
+    if (!current?.cloudUserId) return;
+    const account: Account = { ...current, cloudUserId: undefined };
+    const accounts = await Accounts.upsert(account);
+    setState((prev) => ({ ...prev, account, accounts }));
+    CloudSync.updateAccount(account);
+    await disconnectCloud();
+  },
+
+  /** The stored session expired or belongs to someone else: reconnect with Google. */
+  async reconnectCloud(cloudUserId: string) {
+    const current = state.account;
+    if (!current) return false;
+    if (current.cloudUserId && current.cloudUserId !== cloudUserId) {
+      await disconnectCloud();
+      return false;
+    }
+    const account: Account = { ...current, cloudUserId };
+    setState((prev) => ({ ...prev, account }));
+    Accounts.upsert(account);
+    CloudSync.updateAccount(account);
+    await CloudSync.syncNow();
+    return true;
   },
 
   saveProfile(profile: UserProfile) {

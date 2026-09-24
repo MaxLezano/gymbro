@@ -5,11 +5,13 @@ import { theme } from '../../core/theme';
 import { appActions, getAppState, selectAccount, selectCustomRoutines, selectProfile, useAppStore } from '../../state/appStore';
 import { Avatar } from '../../components/layout/HeaderActions';
 import { isGoogleSignInAvailable, signInWithGoogle, signOutFromGoogle } from '../../core/services/googleAuth';
+import { isCloudAvailable } from '../../core/services/cloud/supabaseClient';
 import { programRoutines } from '../../core/utils/program';
 import { FeedbackService } from '../../core/services/feedback';
 import { AppText, Button, Card, ListRow, ModalHeader } from '../../components/ui';
 import { StackScreen } from '../../components/layout/TabScreen';
 import { profileFromDraft, useProfileDraft } from './profileDraft';
+import { CloudBackupSection } from './CloudBackupSection';
 import { ActivitySection, BasicsSection, GoalSection, LivePreview, MeasurementsSection, TrainingSection } from './ProfileSections';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -90,7 +92,9 @@ export function ProfileScreen() {
     FeedbackService.warning();
     Alert.alert(
       'Eliminar perfil de este teléfono',
-      'Se borrarán tu perfil, rutinas, historial y chat del coach. No se puede deshacer.',
+      account.cloudUserId
+        ? 'Se borrarán de este teléfono tu perfil, rutinas, historial y chat del coach. La copia en la nube se conserva: entra con Google para recuperarla.'
+        : 'Se borrarán tu perfil, rutinas, historial y chat del coach. No se puede deshacer.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -152,9 +156,15 @@ export function ProfileScreen() {
             </Card>
           </Section>
 
+          {isCloudAvailable && (
+            <Section title="Respaldo en la nube">
+              <CloudBackupSection />
+            </Section>
+          )}
+
           <Section title="Cuenta">
             <Card padding={0}>
-              {account?.kind === 'local' && isGoogleSignInAvailable && !draft.email && (
+              {account?.kind === 'local' && isGoogleSignInAvailable && !isCloudAvailable && !draft.email && (
                 <ListRow
                   icon="logo-google"
                   title={linking ? 'Conectando…' : 'Vincular con Google'}
@@ -171,7 +181,9 @@ export function ProfileScreen() {
           </Section>
 
           <AppText variant="caption" color="textMuted" align="center">
-            Cada cuenta guarda sus datos por separado, solo en este teléfono.
+            {account?.cloudUserId
+              ? 'Tus datos se guardan en este teléfono y se respaldan en la nube con tu cuenta de Google.'
+              : 'Cada cuenta guarda sus datos por separado, solo en este teléfono.'}
           </AppText>
         </ScrollView>
       </KeyboardAvoidingView>

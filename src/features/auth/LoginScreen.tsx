@@ -6,10 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
 import type { Account } from '../../storage';
 import { appActions, selectAccounts, useAppStore } from '../../state/appStore';
-import { isGoogleSignInAvailable, signInWithGoogle } from '../../core/services/googleAuth';
+import { isGoogleSignInAvailable } from '../../core/services/googleAuth';
+import { isCloudAvailable } from '../../core/services/cloud/supabaseClient';
 import { FeedbackService } from '../../core/services/feedback';
 import { AppText, Button } from '../../components/ui';
 import { WelcomeHero } from './WelcomeHero';
+import { signInWithGoogleAndCloud } from './googleCloud';
 
 const MAX_VISIBLE_ACCOUNTS = 3;
 
@@ -47,6 +49,11 @@ export function LoginScreen() {
   const visible = showAll ? accounts : accounts.slice(0, MAX_VISIBLE_ACCOUNTS);
 
   const continueAs = async (account: Account) => {
+    // Backed-up accounts need a fresh cloud session (it is closed on sign-out).
+    if (account.cloudUserId && isCloudAvailable) {
+      await withGoogle();
+      return;
+    }
     FeedbackService.mediumTap();
     setBusy(account.id);
     const profile = await appActions.signIn(account);
@@ -56,19 +63,24 @@ export function LoginScreen() {
 
   const withGoogle = async () => {
     setBusy('google');
-    const result = await signInWithGoogle();
+    const result = await signInWithGoogleAndCloud();
     if (result.status !== 'success') {
       setBusy(null);
       if (result.status === 'error') Alert.alert('Google', result.message);
       return;
     }
     const { identity } = result;
+    const id = `google_${identity.email.toLowerCase()}`;
+    // A local profile that turned its backup on keeps its own id; reuse it.
+    const existing = accounts.find((item) => item.id === id) ?? accounts.find((item) => item.cloudUserId && item.email === identity.email);
     const profile = await appActions.signIn({
-      id: `google_${identity.email.toLowerCase()}`,
+      id: existing?.id ?? id,
       kind: 'google',
       name: identity.name,
       email: identity.email,
       photoUrl: identity.photoUrl,
+      // Offline right now: keep the link, the profile offers to reconnect.
+      cloudUserId: result.cloudUserId ?? existing?.cloudUserId,
     });
     setBusy(null);
     FeedbackService.success();
@@ -167,7 +179,7 @@ export function LoginScreen() {
       <View style={styles.privacyRow}>
         <Ionicons name="lock-closed-outline" size={13} color={theme.colors.textMuted} />
         <AppText variant="caption" color="textMuted">
-          Gratis. Tus datos se quedan en tu teléfono.
+          {isCloudAvailable ? 'Gratis. Con Google, tus datos se respaldan en la nube.' : 'Gratis. Tus datos se quedan en tu teléfono.'}
         </AppText>
       </View>
     </WelcomeHero>
