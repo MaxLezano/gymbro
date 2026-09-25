@@ -604,6 +604,14 @@ console.log('\n8. Accounts (per-device data spaces)');
       globalThis.fetch = realFetch;
     }
   });
+  test('catalog browsing order is alphabetical in Spanish, without the slow locale collator', () => {
+    const { firstCatalogPage } = src('features/exercises/useExerciseSearch.ts');
+    const { normalizeText } = src('data/catalog.ts');
+    const all = firstCatalogPage(EXERCISES.length);
+    assert(all.length === EXERCISES.length, 'nothing lost');
+    const keys = all.map((exercise) => normalizeText(exercise.displayName));
+    assert(keys.every((key, i) => i === 0 || keys[i - 1] <= key), 'sorted');
+  });
   test('every focus named in a request is kept', () => {
     const focuses = parseQuery('Armame una rutina de espalda y biceps').focuses;
     assert(JSON.stringify(focuses) === JSON.stringify(['back', 'arms']), `focuses: ${focuses}`);
