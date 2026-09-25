@@ -1,6 +1,7 @@
 import type { NutritionMetrics, UserProfile, WorkoutSession } from '../../types';
 import { getExercises, getExercise, type CatalogExercise } from '../../../data/catalog';
 import { fitsHomeEquipment } from '../../utils/equipment';
+import { pantryLabels } from './mealPlan';
 import { generateRoutine, type TrainingFocus } from '../../utils/programGenerator';
 import { formatRelativeDate, logDisplayName, personalRecords, sessionDate } from '../../utils/workout';
 import { ACTIVITY_LABELS, DIETARY_CONDITION_LABELS, GOAL_LABELS, HOME_EQUIPMENT_OPTIONS, LEVEL_LABELS, LOCATION_LABELS, PRIORITY_LABELS, labelTarget } from '../../i18n/labels';
@@ -26,6 +27,7 @@ export function describeAthlete({ profile, plan }: CoachContext): string {
     `Peso atlético meta ${plan.idealWeightKg} kg`,
     `Entrena en: ${LOCATION_LABELS[profile.trainingLocation]}${profile.trainingLocation !== 'gym' ? ` | Equipo en casa: ${equipment}` : ''}`,
     `Condiciones alimentarias: ${profile.dietaryConditions?.length ? profile.dietaryConditions.map((condition) => `${DIETARY_CONDITION_LABELS[condition].title} (${DIETARY_CONDITION_LABELS[condition].description.toLowerCase()})`).join(', ') : 'ninguna'}`,
+    `En casa tiene para cocinar: ${profile.pantry?.length ? pantryLabels(profile.pantry).join(', ') : 'no lo indicó'}`,
     `Músculos prioritarios: ${profile.focusMuscles?.length ? profile.focusMuscles.map((muscle) => PRIORITY_LABELS[muscle]).join(', ') : 'ninguno (programa equilibrado)'}`,
   ].join('\n');
 }

@@ -59,6 +59,7 @@ export default function RootLayout() {
           <Stack.Screen name="routine/[id]" />
           <Stack.Screen name="routine-builder" />
           <Stack.Screen name="program" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="pantry" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         </Stack>
       ) : null}
       {booting && <BootScreen progress={bootProgress} />}

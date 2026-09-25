@@ -82,6 +82,12 @@ export interface UserProfile {
   favoriteExerciseIds?: string[];
   /** The athlete closed the "complete your profile" card on Home: never show it again. */
   profileNudgeDismissed?: boolean;
+  /** Foods the athlete has at home (meal planner food ids). */
+  pantry?: string[];
+  /** Build the menu from the pantry instead of the full food list. */
+  pantryMode?: boolean;
+  /** "Another option" taps on today's menu: meal index -> swaps. Ignored once the date changes. */
+  menuSwaps?: { date: string; meals: Record<string, number> };
   // Optional Google account link (display only; data stays on device)
   email?: string;
   photoUrl?: string;

@@ -5,6 +5,8 @@ export interface MealPlanItem {
   items: string[];
   kcal?: number;
   proteinGrams?: number;
+  /** Only in pantry mode: whether the meal could be made with what the athlete has at home. */
+  fromPantry?: boolean;
 }
 
 export type CoachBlock =

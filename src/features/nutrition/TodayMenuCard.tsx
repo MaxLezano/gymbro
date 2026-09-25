@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { theme } from '../../core/theme';
 import type { DietaryCondition, NutritionMetrics } from '../../core/types';
-import { buildMealPlan, localDateKey } from '../../core/services/coach/mealPlan';
+import { buildMealPlan, localDateKey, pantryLabels } from '../../core/services/coach/mealPlan';
 import { adaptedToNote, lowCalorieNote, medicalDisclaimerFor } from '../../core/services/coach/nutritionNotes';
 import { FeedbackService } from '../../core/services/feedback';
-import { AppText, Card, SectionHeader } from '../../components/ui';
+import { AppText, Card, Chip, SectionHeader } from '../../components/ui';
+import { appActions, selectProfile, useAppStore } from '../../state/appStore';
 
 /** Meal to open first: the next one by time of day (breakfast, lunch, snack, dinner). */
 function currentMealIndex(date = new Date()): number {
@@ -26,11 +28,36 @@ function splitName(name: string): { meal: string; dish?: string } {
 export function TodayMenuCard({ plan, conditions }: { plan: NutritionMetrics; conditions: DietaryCondition[] }) {
   // The menu rotates at local midnight: the date key keeps it fresh across days.
   const dateKey = localDateKey();
-  const meals = useMemo(() => buildMealPlan(plan, { conditions, date: dateKey }), [plan, conditions, dateKey]);
+  const profile = useAppStore(selectProfile);
+  const pantry = useMemo(() => profile.pantry ?? [], [profile.pantry]);
+  const pantryOn = !!profile.pantryMode && pantry.length > 0;
+  // Swaps belong to one day: tomorrow's menu starts fresh.
+  const swaps = profile.menuSwaps?.date === dateKey ? profile.menuSwaps.meals : undefined;
+  const meals = useMemo(
+    () => buildMealPlan(plan, { conditions, date: dateKey, swaps, pantry: pantryOn ? pantry : undefined }),
+    [plan, conditions, dateKey, swaps, pantryOn, pantry]
+  );
   const [open, setOpen] = useState<number | null>(() => currentMealIndex());
   const adapted = adaptedToNote(conditions);
   const lowCalorie = lowCalorieNote(plan.targetCalories);
   const disclaimer = medicalDisclaimerFor(conditions);
+
+  const setSwap = (index: number, count: number) => {
+    const meals = { ...(swaps ?? {}), [index]: count };
+    appActions.patchProfile({ menuSwaps: { date: dateKey, meals } });
+  };
+
+  const togglePantry = () => {
+    FeedbackService.selection();
+    if (pantry.length === 0) router.push('/pantry');
+    else appActions.patchProfile({ pantryMode: !pantryOn });
+  };
+
+  const askCoach = (label: string, kcal?: number, protein?: number) => {
+    const size = kcal ? ` de unas ${kcal} kcal y ${protein ?? 0} g de proteína` : '';
+    const home = pantryOn ? ` usando lo que tengo en casa: ${pantryLabels(pantry).join(', ')}` : '';
+    router.push({ pathname: '/coach', params: { prompt: `Dame otra opción de ${label.toLowerCase()}${size}${home}` } });
+  };
 
   return (
     <Card>
@@ -40,6 +67,16 @@ export function TodayMenuCard({ plan, conditions }: { plan: NutritionMetrics; co
         <AppText variant="caption" color="textMuted" style={styles.flex}>
           Cambia cada día · cantidades aproximadas
         </AppText>
+      </View>
+      <View style={styles.pantryRow}>
+        <Chip label="Con lo que tengo" icon="basket-outline" size="sm" selected={pantryOn} onPress={togglePantry} />
+        {pantry.length > 0 && (
+          <Pressable accessibilityRole="button" hitSlop={8} onPress={() => router.push('/pantry')}>
+            <AppText variant="caption" color="primary">
+              Editar ingredientes ({pantry.length})
+            </AppText>
+          </Pressable>
+        )}
       </View>
 
       {meals.map((meal, index) => {
@@ -75,11 +112,29 @@ export function TodayMenuCard({ plan, conditions }: { plan: NutritionMetrics; co
             </Pressable>
             {expanded && (
               <View style={styles.items}>
+                {meal.fromPantry === false && (
+                  <AppText variant="caption" color="textMuted" style={styles.missing}>
+                    Con lo que tienes no alcanza para esta comida: te dejamos la sugerida.
+                  </AppText>
+                )}
                 {meal.items.map((item, itemIndex) => (
                   <AppText key={itemIndex} variant="subhead" color="textSecondary">
                     • {item}
                   </AppText>
                 ))}
+                <View style={styles.actions}>
+                  <Chip
+                    label="Otra opción"
+                    icon="shuffle"
+                    size="sm"
+                    onPress={() => {
+                      FeedbackService.lightTap();
+                      setSwap(index, (swaps?.[index] ?? 0) + 1);
+                    }}
+                  />
+                  <Chip label="Preguntar al coach" icon="chatbubble-ellipses-outline" size="sm" onPress={() => askCoach(label, meal.kcal, meal.proteinGrams)} />
+                  {(swaps?.[index] ?? 0) > 0 && <Chip label="Original" icon="arrow-undo" size="sm" onPress={() => setSwap(index, 0)} />}
+                </View>
               </View>
             )}
           </View>
@@ -128,6 +183,21 @@ const styles = StyleSheet.create({
   },
   meal: {
     paddingVertical: 2,
+  },
+  pantryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
+  },
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  missing: {
+    marginBottom: theme.spacing.xs,
   },
   mealBorder: {
     borderTopWidth: StyleSheet.hairlineWidth,

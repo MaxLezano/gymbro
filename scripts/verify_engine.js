@@ -280,6 +280,27 @@ test('meal plan: same day is stable, different days vary', () => {
   const distinct = new Set(DAYS.slice(0, 7).map((day) => menuOf(day)));
   assert(distinct.size >= 6, `only ${distinct.size} distinct menus in a week`);
 });
+test('meal plan: swapping one meal changes only that meal, and stays stable', () => {
+  const base = buildMealPlan(plan, { date: '2026-03-10' });
+  const swapped = buildMealPlan(plan, { date: '2026-03-10', swaps: { 1: 1 } });
+  assert(JSON.stringify(swapped) === JSON.stringify(buildMealPlan(plan, { date: '2026-03-10', swaps: { 1: 1 } })), 'swap not stable');
+  assert(JSON.stringify(swapped[1]) !== JSON.stringify(base[1]), 'lunch did not change');
+  [0, 2, 3].forEach((index) => assert(JSON.stringify(swapped[index]) === JSON.stringify(base[index]), `meal ${index} changed`));
+  // Every swap gives a new option for a while, not the same two alternating.
+  const lunches = new Set([0, 1, 2, 3].map((n) => buildMealPlan(plan, { date: '2026-03-10', swaps: { 1: n } })[1].name));
+  assert(lunches.size >= 3, `only ${lunches.size} distinct lunches in 4 swaps`);
+});
+test('meal plan: cooks with what is at home, and says when it cannot', () => {
+  const meals = buildMealPlan(plan, { date: '2026-03-10', pantry: ['chicken', 'whiteRice'] });
+  const plates = [meals[1], meals[3]];
+  assert(plates.every((meal) => meal.fromPantry && meal.name.includes('Arroz blanco con pechuga de pollo a la plancha')), plates.map((m) => m.name).join(' / '));
+  assert(meals[0].fromPantry === false, 'breakfast cannot be made from chicken and rice');
+  assert(buildMealPlan(plan, { date: '2026-03-10' })[0].fromPantry === undefined, 'no pantry, no flag');
+});
+test('meal plan: lunch and dinner are named after the plate', () => {
+  const meals = buildMealPlan(plan, { date: '2026-03-10' });
+  assert(/^Almuerzo · .+ con .+/.test(meals[1].name) && /^Cena · .+ con .+/.test(meals[3].name), `${meals[1].name} / ${meals[3].name}`);
+});
 test('meal plan: lunch and dinner never share the main protein', () => {
   const MAINS = /pollo|vacuna|cerdo|pescado|salmón|atún|tofu/;
   for (const day of DAYS) {

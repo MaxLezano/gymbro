@@ -319,7 +319,23 @@ const SNACKS: Template[] = [
   },
 ];
 
+/** "pechuga de pollo (cocida)" -> "pechuga de pollo": names that read well inside a dish. */
+const shortName = (id: FoodId) => (FOODS[id] as Food).name.replace(/\s*\(.*\)/, '');
+
+/** How each protein family is usually cooked, for the dish name. */
+const COOKING: Record<string, string> = { poultry: ' a la plancha', beef: ' a la plancha', pork: ' a la plancha', fish: ' a la plancha', tofu: ' salteado' };
+
+/** "Arroz blanco con pechuga de pollo a la plancha", named after the foods actually picked. */
+function plateDish(picked: Set<string>): string {
+  const carb = MAIN_CARBS.find((id) => picked.has(id));
+  const protein = MAIN_PROTEINS.find((id) => picked.has(id));
+  if (!carb || !protein) return '';
+  const family = (FOODS[protein] as Food).family ?? '';
+  return capitalize(`${shortName(carb)} con ${shortName(protein)}${COOKING[family] ?? ''}`);
+}
+
 const PLATE: Template = {
+  dish: plateDish,
   slots: [
     { pool: MAIN_CARBS, fills: 'c' },
     { pool: FRUIT, fills: 'c', optional: true },
@@ -331,6 +347,7 @@ const PLATE: Template = {
 
 /** Always-valid template: none of its foods carry a tag any condition rules out. */
 const SAFE_TEMPLATE: Template = {
+  dish: plateDish,
   slots: [{ pool: ['quinoa'], fills: 'c' }, { pool: ['apple'], fills: 'c', optional: true }, { pool: ['whiteFish'], fills: 'p' }, { pool: ['oliveOil'], fills: 'f', optional: true }],
 };
 
@@ -418,7 +435,9 @@ function planMeal(
   conditions: DietaryCondition[],
   random: () => number,
   bounds: Bounds,
-  avoid: { family?: string; foods: Set<string> } = { foods: new Set() }
+  avoid: { family?: string; foods: Set<string> } = { foods: new Set() },
+  /** Only these foods (what the athlete has at home); undefined allows every food. */
+  only?: ReadonlySet<string>
 ): { portions: Portion[]; extras: string[] } | null {
   const covered: Target = { p: 0, c: 0, f: 0 };
   const portions: Portion[] = [];
@@ -429,7 +448,7 @@ function planMeal(
       .flatMap((id) => (preferred.has(id) ? [id, id] : [id]))
       .map((id) => FOODS[id] as Food)
       // A food shows up once per meal (an egg-white complement never repeats the egg whites).
-      .filter((food) => allowed(food, conditions) && !portions.some((portion) => portion.food.id === food.id));
+      .filter((food) => allowed(food, conditions) && (!only || only.has(food.id)) && !portions.some((portion) => portion.food.id === food.id));
     if (options.length === 0) {
       if (slot.optional) continue;
       return null;
@@ -465,6 +484,10 @@ export interface MealPlanOptions {
   conditions?: DietaryCondition[];
   /** Day to plan for (defaults to today); the same local day always gives the same menu. */
   date?: Date | string;
+  /** Meal index -> how many times the athlete asked for another option today (0 = the day's menu). */
+  swaps?: Readonly<Record<number, number>>;
+  /** Foods the athlete has at home: meals are built only from them when possible. */
+  pantry?: readonly string[];
 }
 
 /** Share of the day's macros for each meal. */
@@ -475,32 +498,104 @@ const MEALS: { name: string; share: number; templates: Template[] }[] = [
   { name: 'Cena', share: 0.25, templates: [PLATE] },
 ];
 
+interface PlannedMeal {
+  template: Template;
+  portions: Portion[];
+  extras: string[];
+  fromPantry: boolean;
+}
+
+interface PlanContext {
+  conditions: DietaryCondition[];
+  bounds: Bounds;
+  pantry?: ReadonlySet<string>;
+}
+
+function shuffled<T>(list: T[], random: () => number): T[] {
+  const copy = [...list];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+/**
+ * One meal: from the pantry when every required food is there, otherwise the regular pick.
+ * `skip` is the template shown before, so "another option" also changes the kind of dish when it can.
+ */
+function planOne(
+  meal: (typeof MEALS)[number],
+  target: Target,
+  context: PlanContext,
+  random: () => number,
+  avoid: { family?: string; foods: Set<string> },
+  skip?: Template
+): PlannedMeal {
+  const fresh = meal.templates.filter((template) => template !== skip);
+  const templates = fresh.length ? fresh : meal.templates;
+  if (context.pantry) {
+    for (const template of shuffled(templates, random)) {
+      const planned = planMeal(template, target, context.conditions, random, context.bounds, avoid, context.pantry);
+      if (planned) return { template, ...planned, fromPantry: true };
+    }
+  }
+  let template = pick(templates, random);
+  let planned = planMeal(template, target, context.conditions, random, context.bounds, avoid);
+  if (!planned) {
+    template = SAFE_TEMPLATE;
+    planned = planMeal(SAFE_TEMPLATE, target, context.conditions, random, context.bounds)!;
+  }
+  return { template, ...planned, fromPantry: false };
+}
+
+const pickedIds = (meal: PlannedMeal) => new Set(meal.portions.map((portion) => portion.food.id));
+
 /**
  * A varied day of eating that lands close to the athlete's macros. Foods rotate
  * daily (seeded by the local date) and respect the athlete's dietary conditions.
+ * Swapping one meal never changes the others.
  */
 export function buildMealPlan(plan: NutritionMetrics, options: MealPlanOptions = {}): MealPlanItem[] {
   const conditions = [...new Set(options.conditions ?? [])];
   const dateKey = typeof options.date === 'string' ? options.date : localDateKey(options.date);
-  const random = seededRandom(`${dateKey}|${[...conditions].sort().join(',')}`);
-  const bounds: Bounds = { min: clamp(plan.targetCalories / 2400, 0.5, 1), max: clamp(plan.targetCalories / 2800, 1, 1.6) };
+  const seed = `${dateKey}|${[...conditions].sort().join(',')}`;
+  const random = seededRandom(seed);
+  const pantry = options.pantry?.length ? new Set(options.pantry) : undefined;
+  const context: PlanContext = {
+    conditions,
+    bounds: { min: clamp(plan.targetCalories / 2400, 0.5, 1), max: clamp(plan.targetCalories / 2800, 1, 1.6) },
+    pantry,
+  };
+  const targets = MEALS.map((meal): Target => ({ p: plan.proteinGrams * meal.share, c: plan.carbGrams * meal.share, f: plan.fatGrams * meal.share }));
+
+  // The day's menu first, always in the same order, so a swap below cannot shift the other meals.
   let lastFamily: string | undefined;
   const eaten = new Set<string>();
+  const familyBefore: (string | undefined)[] = [];
+  const day = MEALS.map((meal, index) => {
+    familyBefore.push(lastFamily);
+    const planned = planOne(meal, targets[index], context, random, { family: lastFamily, foods: eaten });
+    lastFamily = planned.portions.find((portion) => portion.food.family)?.food.family ?? lastFamily;
+    pickedIds(planned).forEach((id) => eaten.add(id));
+    return planned;
+  });
 
-  return MEALS.map((meal) => {
-    const target: Target = { p: plan.proteinGrams * meal.share, c: plan.carbGrams * meal.share, f: plan.fatGrams * meal.share };
-    let template = pick(meal.templates, random);
-    let planned = planMeal(template, target, conditions, random, bounds, { family: lastFamily, foods: eaten });
-    if (!planned) {
-      template = SAFE_TEMPLATE;
-      planned = planMeal(SAFE_TEMPLATE, target, conditions, random, bounds)!;
+  const meals = day.map((planned, index) => {
+    let current = planned;
+    for (let variant = 1; variant <= (options.swaps?.[index] ?? 0); variant += 1) {
+      // Its own stream per meal and variant: stable across reloads, independent of the other meals.
+      const variantRandom = seededRandom(`${seed}|${index}|${variant}`);
+      const otherMeals = day.filter((_, other) => other !== index).flatMap((meal) => [...pickedIds(meal)]);
+      const avoid = { family: familyBefore[index], foods: new Set([...otherMeals, ...pickedIds(current)]) };
+      current = planOne(MEALS[index], targets[index], context, variantRandom, avoid, current.template);
     }
-    const main = planned.portions.find((portion) => portion.food.family);
-    if (main) lastFamily = main.food.family;
-    const picked = new Set(planned.portions.map((portion) => portion.food.id));
-    picked.forEach((id) => eaten.add(id));
-    const dish = typeof template.dish === 'function' ? template.dish(picked) : template.dish;
+    return current;
+  });
 
+  return meals.map((planned, index) => {
+    const meal = MEALS[index];
+    const dish = typeof planned.template.dish === 'function' ? planned.template.dish(pickedIds(planned)) : planned.template.dish;
     const totals = planned.portions.reduce(
       (sum, { food, grams }) => ({ p: sum.p + food.p * grams, c: sum.c + food.c * grams, f: sum.f + food.f * grams }),
       { p: 0, c: 0, f: 0 }
@@ -518,6 +613,81 @@ export function buildMealPlan(plan: NutritionMetrics, options: MealPlanOptions =
       kcal: Math.round(totals.p * 4 + totals.c * 4 + totals.f * 9),
       proteinGrams: Math.round(totals.p),
       items: [...planned.portions.map((portion) => portion.label), ...extras],
+      ...(pantry ? { fromPantry: planned.fromPantry } : {}),
     };
   });
 }
+
+// ---------------------------------------------------------------------------
+// Pantry
+// ---------------------------------------------------------------------------
+
+/** What the athlete can mark as "in my kitchen", grouped as a grocery list. */
+export const PANTRY_GROUPS: { title: string; items: { id: FoodId; label: string }[] }[] = [
+  {
+    title: 'Proteínas',
+    items: [
+      { id: 'chicken', label: 'Pollo' },
+      { id: 'beef', label: 'Carne vacuna' },
+      { id: 'pork', label: 'Cerdo' },
+      { id: 'whiteFish', label: 'Pescado blanco' },
+      { id: 'salmon', label: 'Salmón' },
+      { id: 'tuna', label: 'Atún en lata' },
+      { id: 'tofu', label: 'Tofu' },
+      { id: 'eggs', label: 'Huevos' },
+      { id: 'eggWhites', label: 'Claras' },
+      { id: 'wheyProtein', label: 'Proteína en polvo' },
+    ],
+  },
+  {
+    title: 'Lácteos',
+    items: [
+      { id: 'greekYogurt', label: 'Yogur griego' },
+      { id: 'cottage', label: 'Queso fresco' },
+      { id: 'milk', label: 'Leche' },
+      { id: 'almondDrink', label: 'Bebida de almendras' },
+    ],
+  },
+  {
+    title: 'Carbohidratos',
+    items: [
+      { id: 'whiteRice', label: 'Arroz blanco' },
+      { id: 'brownRice', label: 'Arroz integral' },
+      { id: 'pasta', label: 'Fideos' },
+      { id: 'potato', label: 'Papa' },
+      { id: 'sweetPotato', label: 'Batata' },
+      { id: 'quinoa', label: 'Quinoa' },
+      { id: 'lentils', label: 'Lentejas' },
+      { id: 'chickpeas', label: 'Garbanzos' },
+      { id: 'cornTortillas', label: 'Tortillas de maíz' },
+      { id: 'oats', label: 'Avena' },
+      { id: 'wholeBread', label: 'Pan integral' },
+    ],
+  },
+  {
+    title: 'Frutas',
+    items: [
+      { id: 'banana', label: 'Banana' },
+      { id: 'apple', label: 'Manzana' },
+      { id: 'pear', label: 'Pera' },
+      { id: 'orange', label: 'Naranja' },
+      { id: 'berries', label: 'Frutos rojos' },
+    ],
+  },
+  {
+    title: 'Grasas',
+    items: [
+      { id: 'avocado', label: 'Palta' },
+      { id: 'oliveOil', label: 'Aceite de oliva' },
+      { id: 'nuts', label: 'Frutos secos' },
+      { id: 'seeds', label: 'Semillas' },
+      { id: 'peanutButter', label: 'Mantequilla de maní' },
+    ],
+  },
+];
+
+const PANTRY_LABELS = new Map<string, string>(PANTRY_GROUPS.flatMap((group) => group.items.map((item) => [item.id, item.label] as const)));
+
+/** "Pollo, Arroz blanco": for the coach and the menu hints. */
+export const pantryLabels = (ids: readonly string[]): string[] =>
+  ids.map((id) => PANTRY_LABELS.get(id)).filter((label): label is string => !!label);
