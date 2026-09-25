@@ -43,18 +43,18 @@ const styles = StyleSheet.create({
     height: 140,
   },
   track: {
+    // Narrower than the logo and hairline-thin: a hint of progress, not a feature.
     position: 'absolute',
     bottom: '12%',
-    left: 72,
-    right: 72,
-    height: 4,
-    borderRadius: 2,
+    width: 96,
+    height: 3,
+    borderRadius: 1.5,
     overflow: 'hidden',
     backgroundColor: theme.colors.surface,
   },
   fill: {
     height: '100%',
-    borderRadius: 2,
+    borderRadius: 1.5,
     backgroundColor: theme.colors.primary,
   },
 });
