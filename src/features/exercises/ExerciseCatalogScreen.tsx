@@ -63,8 +63,11 @@ export function ExerciseCatalogScreen() {
       </View>
       <View style={styles.countRow}>
         <AppText variant="caption" color="textMuted">
-          {results.length.toLocaleString('es-ES')} resultados
-          {favorites.length === 0 ? ' · Mantén presionado uno para guardarlo en favoritos' : ''}
+          {/* "Mi equipo" hides what needs other equipment: say so, or 829 vs 1.324 reads like missing data. */}
+          {onlyMine && !ids
+            ? `${results.length.toLocaleString('es-ES')} con tu equipo · quita "Mi equipo" para ver todos`
+            : `${results.length.toLocaleString('es-ES')} resultados`}
+          {favorites.length === 0 && !(onlyMine && !ids) ? ' · Mantén presionado uno para guardarlo en favoritos' : ''}
         </AppText>
       </View>
       <FlatList
