@@ -50,7 +50,7 @@ export function HeaderActions() {
   return (
     <>
       <IconButton
-        icon="sparkles"
+        icon="chatbubble-ellipses"
         variant="tonal"
         size={38}
         iconSize={18}

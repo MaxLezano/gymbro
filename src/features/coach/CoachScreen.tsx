@@ -198,7 +198,7 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
       <View style={styles.assistant}>
         <View style={styles.assistantHeader}>
           <View style={styles.coachAvatar}>
-            <Ionicons name="sparkles" size={12} color={theme.colors.onPrimary} />
+            <Ionicons name="chatbubble-ellipses" size={12} color={theme.colors.onPrimary} />
           </View>
           <AppText variant="caption" color="textMuted" style={styles.bold}>
             Coach{item.source === 'offline' ? ' · respuesta básica' : ''}
@@ -251,7 +251,7 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
         {empty ? (
           <View style={styles.welcome}>
             <View style={styles.welcomeIcon}>
-              <Ionicons name="sparkles" size={28} color={theme.colors.primary} />
+              <Ionicons name="chatbubble-ellipses" size={28} color={theme.colors.primary} />
             </View>
             <AppText variant="title" align="center">
               ¿En qué te ayudo hoy?

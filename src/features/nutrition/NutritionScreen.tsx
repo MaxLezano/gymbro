@@ -111,7 +111,7 @@ export function NutritionScreen() {
 
           <Button
             label="¿Qué como hoy? Pregúntale al coach"
-            icon="sparkles"
+            icon="chatbubble-ellipses-outline"
             variant="tonal"
             size="lg"
             fullWidth

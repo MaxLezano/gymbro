@@ -172,7 +172,7 @@ export function HomeScreen() {
           <Card>
             <View style={styles.coachHead}>
               <View style={styles.coachIcon}>
-                <Ionicons name="sparkles" size={20} color={theme.colors.primary} />
+                <Ionicons name="chatbubble-ellipses" size={20} color={theme.colors.primary} />
               </View>
               <View style={styles.flex}>
                 <AppText variant="headline">Coach IA</AppText>

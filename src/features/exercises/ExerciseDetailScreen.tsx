@@ -229,7 +229,7 @@ export function ExerciseDetailScreen({ exerciseId, prescription }: { exerciseId:
       <View style={styles.footer}>
         <Button
           label="Preguntar"
-          icon="sparkles"
+          icon="chatbubble-ellipses-outline"
           variant="secondary"
           size="lg"
           onPress={() =>
