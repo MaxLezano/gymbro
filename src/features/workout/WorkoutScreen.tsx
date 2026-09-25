@@ -22,6 +22,7 @@ import { ExerciseLogCard } from './ExerciseLogCard';
 import { RestTimer } from './RestTimer';
 import { CoachMode } from './CoachMode';
 import { WorkoutSummary, type NewRecord } from './WorkoutSummary';
+import { warmupExerciseIndex, warmupFor } from '../../core/utils/warmup';
 
 function Clock({ startedAt }: { startedAt: number }) {
   const now = useNow();
@@ -50,6 +51,13 @@ export function WorkoutScreen() {
     }
     return map;
   }, [exerciseKey, history]);
+
+  // Only the first heavy lift gets a warm-up ramp; it follows the working weight as it is edited.
+  const exercises = session?.exercises;
+  const { warmupIndex, warmup } = useMemo(() => {
+    const at = exercises ? warmupExerciseIndex(exercises) : -1;
+    return { warmupIndex: at, warmup: at >= 0 && exercises ? warmupFor(exercises[at]) : undefined };
+  }, [exercises]);
 
   const handleSetCompleted = useCallback((exerciseIndex: number, restSeconds: number) => {
     const current = getAppState().activeWorkout;
@@ -200,6 +208,7 @@ export function WorkoutScreen() {
                 total={session.exercises.length}
                 previousSets={previousByExercise.get(log.exerciseId) ?? null}
                 onSetCompleted={handleSetCompleted}
+                warmup={index === warmupIndex ? warmup : undefined}
               />
             ))}
 

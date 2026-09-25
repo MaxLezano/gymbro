@@ -699,6 +699,24 @@ console.log('\n8. Accounts (per-device data spaces)');
     assert(weightChange(log, 30).kg === -1 && weightChange(log.slice(0, 1), 7) === null, 'change');
     assert(weighInDue(log, '2026-03-22') && !weighInDue(log, '2026-03-21') && weighInDue(undefined, '2026-03-21'), 'due');
   });
+  test('warm-up ramps to the first heavy lift and never touches working sets', () => {
+    const { warmupSets, warmupExerciseIndex } = src('core/utils/warmup.ts');
+    const fmt = (sets) => sets.map((s) => `${s.weightKg}x${s.reps}`).join(' ');
+    assert(fmt(warmupSets('barbell', 100)) === '20x10 50x5 70x3 85x2', fmt(warmupSets('barbell', 100)));
+    assert(fmt(warmupSets('barbell', 60)) === '20x10 30x5 42.5x3', fmt(warmupSets('barbell', 60)));
+    assert(fmt(warmupSets('dumbbell', 32)) === '16x8 24x4', fmt(warmupSets('dumbbell', 32)));
+    assert(warmupSets('barbell', 25).length === 0 && warmupSets('body weight', 80).length === 0, 'light or bodyweight');
+    const sets = (kg) => [{ id: 's', setNumber: 1, type: 'normal', weightKg: kg, reps: 8, completed: false }];
+    const dumbbellRow = EXERCISES.find((e) => e.equipment === 'dumbbell');
+    const pushUp = EXERCISES.find((e) => e.equipment === 'body weight');
+    const benchId = '0025';
+    const index = warmupExerciseIndex([
+      { exerciseId: pushUp.id, exerciseName: '', sets: sets(0) },
+      { exerciseId: dumbbellRow.id, exerciseName: '', sets: sets(10) },
+      { exerciseId: benchId, exerciseName: '', sets: sets(70) },
+    ]);
+    assert(index === 2, `first heavy lift is ${index}`);
+  });
   test('every focus named in a request is kept', () => {
     const focuses = parseQuery('Armame una rutina de espalda y biceps').focuses;
     assert(JSON.stringify(focuses) === JSON.stringify(['back', 'arms']), `focuses: ${focuses}`);

@@ -20,7 +20,7 @@ Tick each item once it is done **and** checked on the emulator.
 
 - [x] Log what you ate: mark meals as eaten and track water (resets daily).
 - [x] Body weight: progress chart and a weekly weigh-in reminder (Monday 8:00).
-- [ ] Automatic warm-up sets for the first heavy lift of the day.
+- [x] Automatic warm-up sets for the first heavy lift of the day (checklist, never logged as volume).
 - [ ] Plate calculator: which plates to load for X kg.
 - [ ] Training reminders on the program's days.
 - [ ] Suggested deload week when progress stalls.

@@ -7,6 +7,7 @@ import { labelTarget } from '../../core/i18n/labels';
 import { formatRest } from '../../core/utils/workout';
 import { getExercise } from '../../data/catalog';
 import type { SetLog, WorkoutExerciseLog } from '../../core/types';
+import type { WarmupSet } from '../../core/utils/warmup';
 import { appActions } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
 import { ActionSheet, AppText, Button, Chip, IconButton, type SheetAction } from '../../components/ui';
@@ -19,6 +20,8 @@ interface ExerciseLogCardProps {
   total: number;
   previousSets: SetLog[] | null;
   onSetCompleted: (exerciseIndex: number, restSeconds: number) => void;
+  /** Ramp to the working weight, only for the session's first heavy lift. */
+  warmup?: WarmupSet[];
 }
 
 /** Quick rest presets: short for isolation/circuits, long for heavy compound lifts. */
@@ -146,6 +149,7 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
   total,
   previousSets,
   onSetCompleted,
+  warmup,
 }: ExerciseLogCardProps) {
   const exercise = getExercise(log.exerciseId);
   const isBodyweight = exercise?.equipment === 'body weight';
@@ -160,6 +164,10 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
     isBodyweight && loadFocusSetId === null && !previousSets?.some((set) => set.weightKg > 0) && log.sets.every((set) => set.weightKg === 0);
   const addLoad = useCallback((setId: string) => setLoadFocusSetId(setId), []);
   const caption = [exercise ? labelTarget(exercise.target) : null, log.targetReps ? `${log.targetReps} reps` : null].filter(Boolean).join(' · ');
+
+  // Warm-up sets are a checklist, never logged: they must not count as volume or records.
+  const [warmedUp, setWarmedUp] = useState<number[]>([]);
+  const showWarmup = !!warmup?.length && done === 0;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuActions: SheetAction[] = [
@@ -248,6 +256,35 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
         </View>
       )}
 
+      {showWarmup && (
+        <View style={styles.warmup}>
+          <View style={styles.warmupTitle}>
+            <Ionicons name="flame-outline" size={14} color={theme.colors.primary} />
+            <AppText variant="caption" color="textSecondary" style={styles.bold}>
+              Calentamiento
+            </AppText>
+            <AppText variant="caption" color="textMuted">
+              · no cuenta como serie
+            </AppText>
+          </View>
+          <View style={styles.warmupSets}>
+            {warmup!.map((set, warmupIndex) => (
+              <Chip
+                key={warmupIndex}
+                size="sm"
+                icon={warmedUp.includes(warmupIndex) ? 'checkmark' : undefined}
+                selected={warmedUp.includes(warmupIndex)}
+                label={`${set.weightKg.toLocaleString('es-ES')} kg × ${set.reps}`}
+                onPress={() => {
+                  FeedbackService.lightTap();
+                  setWarmedUp((prev) => (prev.includes(warmupIndex) ? prev.filter((item) => item !== warmupIndex) : [...prev, warmupIndex]));
+                }}
+              />
+            ))}
+          </View>
+        </View>
+      )}
+
       <View style={styles.tableHeader}>
         <AppText variant="overline" color="textMuted" style={styles.headSet}>
           Serie
@@ -289,6 +326,21 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
 });
 
 const styles = StyleSheet.create({
+  warmup: {
+    gap: 6,
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+  },
+  warmupTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  warmupSets: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.xs,
+  },
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.radius.lg,

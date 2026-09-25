@@ -17,6 +17,7 @@ import { AppText, Button } from '../../components/ui';
 import { ExerciseThumb } from '../exercises/ExerciseThumb';
 import { useVoiceCommands, type ListeningState } from './useVoiceCommands';
 import { CoachSettingsSheet } from './CoachSettingsSheet';
+import { warmupExerciseIndex, warmupFor } from '../../core/utils/warmup';
 
 interface Position {
   exerciseIndex: number;
@@ -369,6 +370,9 @@ export function CoachMode({ session, onFinish }: { session: WorkoutSession; onFi
   const suggestion = position.setIndex === 0 && !resting ? suggestLoad({ equipment: exercise?.equipment, targetReps: log.targetReps, last }) : null;
   const showSuggestion = suggestion?.weightKg != null && suggestion.weightKg !== set.weightKg;
   const doneInExercise = log.sets.filter((item) => item.completed).length;
+  // Before the first working set of the session's first heavy lift: the warm-up ramp (never logged).
+  const warmup =
+    doneInExercise === 0 && position.setIndex === 0 && !isWorking && warmupExerciseIndex(session.exercises) === position.exerciseIndex ? warmupFor(log) : [];
   const hint = LISTENING_HINT[voice.state];
   const update = (patch: { weightKg?: number; reps?: number }) => appActions.updateSet(position.exerciseIndex, position.setIndex, patch);
 
@@ -417,6 +421,7 @@ export function CoachMode({ session, onFinish }: { session: WorkoutSession; onFi
               </AppText>
             </View>
 
+
             {isWorking && working && <SetStopwatch startedAt={working.startedAt} />}
 
             <View style={styles.tiles}>
@@ -428,6 +433,15 @@ export function CoachMode({ session, onFinish }: { session: WorkoutSession; onFi
               )}
               <ValueTile label="Repeticiones" value={`${set.reps}`} onMinus={() => update({ reps: Math.max(1, set.reps - 1) })} onPlus={() => update({ reps: set.reps + 1 })} />
             </View>
+            {/* Below the weight controls: appearing above them would move the buttons under the finger. */}
+            {warmup.length > 0 && (
+              <View style={styles.warmup} accessible accessibilityLabel={`Antes, calienta: ${warmup.map((item) => `${item.weightKg} kilos por ${item.reps}`).join(', ')}`}>
+                <Ionicons name="flame-outline" size={16} color={theme.colors.primary} />
+                <AppText variant="subhead" color="textSecondary" style={styles.flexShrink}>
+                  Antes, calienta: {warmup.map((item) => `${item.weightKg.toLocaleString('es-ES')} kg × ${item.reps}`).join(' · ')}
+                </AppText>
+              </View>
+            )}
 
             {showSuggestion && suggestion && (
               <Pressable accessibilityRole="button" onPress={() => update({ weightKg: suggestion.weightKg ?? set.weightKg })} style={({ pressed }) => [styles.suggestion, pressed && styles.pressed]}>
@@ -468,6 +482,16 @@ export function CoachMode({ session, onFinish }: { session: WorkoutSession; onFi
 }
 
 const styles = StyleSheet.create({
+  warmup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    alignSelf: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surface,
+  },
   flex: {
     flex: 1,
   },
