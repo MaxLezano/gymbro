@@ -8,9 +8,9 @@ import { labelBodyPart, labelEquipment, labelTarget } from '../../core/i18n/labe
 import { getExercise } from '../../data/catalog';
 import { fitsHomeEquipment } from '../../core/utils/equipment';
 import { findLastPerformance, formatRelativeDate, formatRest, parseRepRange, personalRecords, suggestLoad, type LoadSuggestion } from '../../core/utils/workout';
-import { appActions, selectActiveWorkout, selectHistory, selectProfile, useAppStore } from '../../state/appStore';
+import { appActions, selectActiveWorkout, selectFavoriteExerciseIds, selectHistory, selectProfile, useAppStore } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
-import { AppText, Badge, Button, Card, Divider, EmptyState, ModalHeader, StatTile } from '../../components/ui';
+import { AppText, Badge, Button, Card, Divider, EmptyState, IconButton, ModalHeader, StatTile } from '../../components/ui';
 import { StackScreen } from '../../components/layout/TabScreen';
 
 /** What the routine asks for (present when opened from a routine or a workout). */
@@ -90,6 +90,7 @@ export function ExerciseDetailScreen({ exerciseId, prescription }: { exerciseId:
   const profile = useAppStore(selectProfile);
   const history = useAppStore(selectHistory);
   const activeWorkout = useAppStore(selectActiveWorkout);
+  const favorite = useAppStore(selectFavoriteExerciseIds).includes(exerciseId);
 
   const stats = useMemo(() => {
     const last = findLastPerformance(exerciseId, history);
@@ -126,7 +127,24 @@ export function ExerciseDetailScreen({ exerciseId, prescription }: { exerciseId:
 
   return (
     <StackScreen>
-      <ModalHeader title={exercise.displayName} subtitle={labelBodyPart(exercise.bodyPart)} onClose={() => router.back()} closeIcon="arrow-back" />
+      <ModalHeader
+        title={exercise.displayName}
+        subtitle={labelBodyPart(exercise.bodyPart)}
+        onClose={() => router.back()}
+        closeIcon="arrow-back"
+        right={
+          <IconButton
+            icon={favorite ? 'star' : 'star-outline'}
+            variant="filled"
+            size={38}
+            color={favorite ? theme.colors.primary : undefined}
+            onPress={() => {
+              if (appActions.toggleFavoriteExercise(exercise.id)) FeedbackService.success();
+            }}
+            accessibilityLabel={favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'}
+          />
+        }
+      />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.media}>
           {exercise.gifUrl ? (

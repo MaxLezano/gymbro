@@ -171,6 +171,10 @@ export function migrateProfile(stored: Partial<UserProfile>): UserProfile {
       stored.focusMuscles ?? (stored.focusMuscle && stored.focusMuscle !== 'balanced' ? [stored.focusMuscle] : []),
     // Added later: older profiles have no conditions.
     dietaryConditions: Array.isArray(stored.dietaryConditions) ? stored.dietaryConditions : [],
+    favoriteExerciseIds: Array.isArray(stored.favoriteExerciseIds)
+      ? [...new Set(stored.favoriteExerciseIds.filter((id): id is string => typeof id === 'string'))]
+      : [],
+    profileNudgeDismissed: stored.profileNudgeDismissed === true,
   };
 }
 

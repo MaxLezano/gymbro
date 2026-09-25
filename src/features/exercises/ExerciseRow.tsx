@@ -16,6 +16,10 @@ interface ExerciseRowProps {
   selected?: boolean;
   selectable?: boolean;
   unavailable?: boolean;
+  /** Starred by the athlete: a small star next to the name. */
+  favorite?: boolean;
+  /** Long press toggles the favorite (optional). */
+  onLongPress?: (exercise: CatalogExercise) => void;
 }
 
 export const ExerciseRow = React.memo(function ExerciseRow({
@@ -24,20 +28,27 @@ export const ExerciseRow = React.memo(function ExerciseRow({
   selected = false,
   selectable = false,
   unavailable = false,
+  favorite = false,
+  onLongPress,
 }: ExerciseRowProps) {
   return (
     <Pressable
       accessibilityRole={selectable ? 'checkbox' : 'button'}
       accessibilityState={selectable ? { checked: selected } : undefined}
-      accessibilityLabel={`${exercise.displayName}, ${labelTarget(exercise.target)}, ${labelEquipment(exercise.equipment)}`}
+      accessibilityLabel={`${exercise.displayName}${favorite ? ', favorito' : ''}, ${labelTarget(exercise.target)}, ${labelEquipment(exercise.equipment)}`}
+      accessibilityHint={onLongPress ? (favorite ? 'Mantén presionado para quitarlo de favoritos' : 'Mantén presionado para añadirlo a favoritos') : undefined}
       onPress={() => onPress(exercise)}
+      onLongPress={onLongPress ? () => onLongPress(exercise) : undefined}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       <ExerciseThumb uri={exercise.thumbnailUrl} size={56} />
       <View style={styles.texts}>
-        <AppText variant="callout" numberOfLines={1} style={styles.name}>
-          {exercise.displayName}
-        </AppText>
+        <View style={styles.nameRow}>
+          {favorite && <Ionicons name="star" size={13} color={theme.colors.primary} />}
+          <AppText variant="callout" numberOfLines={1} style={[styles.name, styles.metaFlex]}>
+            {exercise.displayName}
+          </AppText>
+        </View>
         <View style={styles.metaRow}>
           <AppText variant="caption" color="primary" numberOfLines={1} style={styles.meta}>
             {labelTarget(exercise.target)}
@@ -79,6 +90,11 @@ const styles = StyleSheet.create({
   },
   name: {
     fontWeight: '600',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   metaRow: {
     flexDirection: 'row',

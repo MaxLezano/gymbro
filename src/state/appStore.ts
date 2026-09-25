@@ -10,6 +10,7 @@ import {
   createExerciseLog,
   createSessionFromRoutine,
 } from '../core/utils/workout';
+import { toggleFavorite } from '../core/utils/exerciseLists';
 
 export interface AppState {
   hydrated: boolean;
@@ -272,6 +273,20 @@ export const appActions = {
     Storage.saveProfile(profile);
   },
 
+  /** Small profile-only changes (favorites, dismissed hints) that do not touch the account. */
+  patchProfile(patch: Partial<UserProfile>) {
+    const profile = { ...state.profile, ...patch };
+    setState((prev) => ({ ...prev, profile }));
+    Storage.saveProfile(profile);
+  },
+
+  /** Stars or unstars an exercise. Returns whether it is a favorite now. */
+  toggleFavoriteExercise(exerciseId: string): boolean {
+    const favoriteExerciseIds = toggleFavorite(state.profile.favoriteExerciseIds, exerciseId);
+    appActions.patchProfile({ favoriteExerciseIds });
+    return favoriteExerciseIds.includes(exerciseId);
+  },
+
   upsertRoutine(routine: Routine) {
     setState((prev) => {
       const exists = prev.customRoutines.some((item) => item.id === routine.id);
@@ -485,6 +500,8 @@ export const appActions = {
 // Stable selectors (module-level so their identity never changes).
 export const selectProfile = (s: AppState) => s.profile;
 export const selectHistory = (s: AppState) => s.history;
+const NO_FAVORITES: string[] = [];
+export const selectFavoriteExerciseIds = (s: AppState) => s.profile.favoriteExerciseIds ?? NO_FAVORITES;
 export const selectActiveWorkout = (s: AppState) => s.activeWorkout;
 export const selectRestTimer = (s: AppState) => s.restTimer;
 export const selectCustomRoutines = (s: AppState) => s.customRoutines;

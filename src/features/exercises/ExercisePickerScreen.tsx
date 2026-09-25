@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { theme } from '../../core/theme';
@@ -10,6 +10,7 @@ import type { CatalogExercise } from '../../data/catalog';
 import { EXERCISE_ROW_HEIGHT, ExerciseRow } from './ExerciseRow';
 import { BodyPartFilterRow, SearchField } from './ExerciseFilters';
 import { useExerciseSearch } from './useExerciseSearch';
+import { useExerciseCollections } from './useExerciseCollections';
 import { pickerBridge } from './pickerBridge';
 
 const ITEM_HEIGHT = EXERCISE_ROW_HEIGHT + StyleSheet.hairlineWidth;
@@ -31,7 +32,9 @@ export function ExercisePickerScreen({
   const [onlyMine, setOnlyMine] = useState(profile.trainingLocation === 'home');
   const [selected, setSelected] = useState<string[]>([]);
 
-  const results = useExerciseSearch({ query, bodyPart, onlyMyEquipment: onlyMine, homeEquipment: profile.homeEquipment });
+  const { favorites, recents, ids, effectiveBodyPart } = useExerciseCollections(bodyPart);
+  const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
+  const results = useExerciseSearch({ query, bodyPart: effectiveBodyPart, onlyMyEquipment: onlyMine, homeEquipment: profile.homeEquipment, ids });
 
   const toggle = useCallback(
     (exercise: CatalogExercise) => {
@@ -50,9 +53,9 @@ export function ExercisePickerScreen({
 
   const renderItem = useCallback(
     ({ item }: { item: CatalogExercise }) => (
-      <ExerciseRow exercise={item} onPress={toggle} selectable selected={selected.includes(item.id)} />
+      <ExerciseRow exercise={item} onPress={toggle} selectable selected={selected.includes(item.id)} favorite={favoriteSet.has(item.id)} />
     ),
-    [toggle, selected]
+    [toggle, selected, favoriteSet]
   );
 
   const close = () => {
@@ -75,8 +78,10 @@ export function ExercisePickerScreen({
       </View>
       <View>
         <BodyPartFilterRow
-          value={bodyPart}
+          value={effectiveBodyPart}
           onChange={setBodyPart}
+          favoritesCount={favorites.length}
+          recentsCount={recents.length}
           leading={<Chip label="Mi equipo" icon="home-outline" selected={onlyMine} onPress={() => setOnlyMine((v) => !v)} />}
         />
       </View>

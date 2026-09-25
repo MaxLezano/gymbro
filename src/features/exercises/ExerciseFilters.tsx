@@ -3,7 +3,9 @@ import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
 import { Chip } from '../../components/ui';
-import { BODY_PART_FILTERS } from './useExerciseSearch';
+import { BODY_PART_FILTERS, FAVORITES_FILTER, RECENT_FILTER } from './useExerciseSearch';
+
+type Filter = { id: string; label: string; icon?: keyof typeof Ionicons.glyphMap };
 
 export function SearchField({
   value,
@@ -45,20 +47,32 @@ export function BodyPartFilterRow({
   value,
   onChange,
   leading,
+  favoritesCount = 0,
+  recentsCount = 0,
 }: {
   value: string;
   onChange: (id: string) => void;
   leading?: React.ReactNode;
+  /** The athlete's own lists appear right after "Todos" when they have something in them. */
+  favoritesCount?: number;
+  recentsCount?: number;
 }) {
+  const [all, ...bodyParts] = BODY_PART_FILTERS;
+  const data: Filter[] = [
+    all,
+    ...(favoritesCount > 0 ? [{ id: FAVORITES_FILTER, label: 'Favoritos', icon: 'star' as const }] : []),
+    ...(recentsCount > 0 ? [{ id: RECENT_FILTER, label: 'Recientes', icon: 'time-outline' as const }] : []),
+    ...bodyParts,
+  ];
   return (
     <FlatList
       horizontal
-      data={BODY_PART_FILTERS}
+      data={data}
       keyExtractor={(item) => item.id}
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.chips}
       ListHeaderComponent={leading ? <View style={styles.leading}>{leading}</View> : null}
-      renderItem={({ item }) => <Chip label={item.label} selected={value === item.id} onPress={() => onChange(item.id)} />}
+      renderItem={({ item }) => <Chip label={item.label} icon={item.icon} selected={value === item.id} onPress={() => onChange(item.id)} />}
     />
   );
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { theme } from '../../core/theme';
@@ -6,10 +6,12 @@ import { AppText, Chip, Divider, EmptyState, ScreenHeader } from '../../componen
 import { TabScreen } from '../../components/layout/TabScreen';
 import { HeaderActions } from '../../components/layout/HeaderActions';
 import { EXERCISE_COUNT, type CatalogExercise } from '../../data/catalog';
-import { selectProfile, useAppStore } from '../../state/appStore';
+import { appActions, selectProfile, useAppStore } from '../../state/appStore';
+import { FeedbackService } from '../../core/services/feedback';
 import { EXERCISE_ROW_HEIGHT, ExerciseRow } from './ExerciseRow';
 import { BodyPartFilterRow, SearchField } from './ExerciseFilters';
 import { useExerciseSearch } from './useExerciseSearch';
+import { useExerciseCollections } from './useExerciseCollections';
 
 const ITEM_HEIGHT = EXERCISE_ROW_HEIGHT + StyleSheet.hairlineWidth;
 
@@ -19,20 +21,31 @@ export function ExerciseCatalogScreen() {
   const [bodyPart, setBodyPart] = useState('all');
   const [onlyMine, setOnlyMine] = useState(profile.trainingLocation === 'home');
 
+  const { favorites, recents, ids, effectiveBodyPart } = useExerciseCollections(bodyPart);
+  const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
+
   const results = useExerciseSearch({
     query,
-    bodyPart,
+    bodyPart: effectiveBodyPart,
     onlyMyEquipment: onlyMine,
     homeEquipment: profile.homeEquipment,
+    ids,
   });
 
   const openExercise = useCallback((exercise: CatalogExercise) => {
     router.push({ pathname: '/exercise/[id]', params: { id: exercise.id } });
   }, []);
 
+  const toggleFavorite = useCallback((exercise: CatalogExercise) => {
+    if (appActions.toggleFavoriteExercise(exercise.id)) FeedbackService.success();
+    else FeedbackService.lightTap();
+  }, []);
+
   const renderItem = useCallback(
-    ({ item }: { item: CatalogExercise }) => <ExerciseRow exercise={item} onPress={openExercise} />,
-    [openExercise]
+    ({ item }: { item: CatalogExercise }) => (
+      <ExerciseRow exercise={item} onPress={openExercise} onLongPress={toggleFavorite} favorite={favoriteSet.has(item.id)} />
+    ),
+    [openExercise, toggleFavorite, favoriteSet]
   );
 
   return (
@@ -41,18 +54,22 @@ export function ExerciseCatalogScreen() {
       <SearchField value={query} onChangeText={setQuery} placeholder="Buscar por nombre, músculo o equipo" />
       <View>
         <BodyPartFilterRow
-          value={bodyPart}
+          value={effectiveBodyPart}
           onChange={setBodyPart}
+          favoritesCount={favorites.length}
+          recentsCount={recents.length}
           leading={<Chip label="Mi equipo" icon="home-outline" selected={onlyMine} onPress={() => setOnlyMine((v) => !v)} />}
         />
       </View>
       <View style={styles.countRow}>
         <AppText variant="caption" color="textMuted">
           {results.length.toLocaleString('es-ES')} resultados
+          {favorites.length === 0 ? ' · Mantén presionado uno para guardarlo en favoritos' : ''}
         </AppText>
       </View>
       <FlatList
         data={results}
+        extraData={favoriteSet}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ItemSeparatorComponent={Separator}

@@ -78,6 +78,10 @@ export interface UserProfile {
   focusMuscle?: FocusMuscle;
   /** Dietary health conditions the meal plan must respect; missing or empty means none. */
   dietaryConditions?: DietaryCondition[];
+  /** Exercises starred by the athlete, most recent first. Synced with the rest of the profile. */
+  favoriteExerciseIds?: string[];
+  /** The athlete closed the "complete your profile" card on Home: never show it again. */
+  profileNudgeDismissed?: boolean;
   // Optional Google account link (display only; data stays on device)
   email?: string;
   photoUrl?: string;
