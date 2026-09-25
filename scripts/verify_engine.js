@@ -42,7 +42,10 @@ const asyncStorage = {
   multiRemove: async (keys) => keys.forEach((key) => memory.delete(key)),
 };
 // __esModule: transpiled `import X from` must receive the default export as-is.
-const STUBS = { '@react-native-async-storage/async-storage': { __esModule: true, default: asyncStorage } };
+const STUBS = {
+  '@react-native-async-storage/async-storage': { __esModule: true, default: asyncStorage },
+  'expo-localization': { __esModule: true, getLocales: () => [{ languageCode: 'es', languageTag: 'es-AR' }] },
+};
 const originalLoad = Module._load;
 Module._load = function load(request, parent, isMain) {
   if (STUBS[request]) return STUBS[request];
@@ -102,7 +105,10 @@ test('every exercise has media and instructions', () => {
   const missing = EXERCISES.filter((e) => !e.gifUrl || !e.thumbnailUrl || e.instructions.length === 0);
   assert(missing.length === 0, `${missing.length} incomplete, e.g. ${missing[0]?.id}`);
 });
-test('display names are title-cased', () => assert(getExercise('0289').displayName === 'Dumbbell Bench Press', getExercise('0289').displayName));
+test('English fallback names are title-cased', () => {
+  const { formatExerciseName } = src('core/i18n/labels.ts');
+  assert(formatExerciseName(getExercise('0289').name) === 'Dumbbell Bench Press', formatExerciseName(getExercise('0289').name));
+});
 
 console.log('\n2. Nutrition engine (Mifflin-St Jeor, Navy, macros)');
 const profileForPlan = { gender: 'male', weightKg: 78, heightCm: 178, age: 26, activityLevel: 'moderate', fitnessGoal: 'muscle_gain' };
@@ -359,6 +365,25 @@ test('Spanish search terms find the classic lifts', () => {
     const found = search(query);
     assert(found.length > 0 && found.some((exercise) => pattern.test(exercise.name)), `${query}: ${found.length}`);
   }
+});
+test('i18n: every locale has the same catalog keys and every exercise has a Spanish name', () => {
+  const flatKeys = (value, prefix = '') =>
+    typeof value === 'object' ? Object.entries(value).flatMap(([key, child]) => flatKeys(child, `${prefix}${key}.`)) : [prefix];
+  const es = flatKeys(require('../src/core/i18n/locales/es/catalog.json')).sort();
+  const en = flatKeys(require('../src/core/i18n/locales/en/catalog.json')).sort();
+  const onlyEs = es.filter((key) => !en.includes(key));
+  const onlyEn = en.filter((key) => !es.includes(key));
+  assert(onlyEs.length === 0 && onlyEn.length === 0, `only es: ${onlyEs.slice(0, 5)} | only en: ${onlyEn.slice(0, 5)}`);
+  const names = require('../src/core/i18n/locales/es/exercises.json');
+  const missing = EXERCISES.filter((exercise) => !names[exercise.id]);
+  assert(missing.length === 0, `missing Spanish names: ${missing.slice(0, 5).map((e) => e.id)}`);
+  assert(getExercise('0043').displayName === names['0043'], 'catalog uses the translation');
+});
+test('saved sessions show exercise names in the current language', () => {
+  const { logDisplayName } = src('core/utils/workout.ts');
+  const names = require('../src/core/i18n/locales/es/exercises.json');
+  assert(logDisplayName({ exerciseId: '0043', exerciseName: 'Barbell Full Squat' }) === names['0043'], 'old English name');
+  assert(logDisplayName({ exerciseId: 'custom_1', exerciseName: 'Mi ejercicio' }) === 'Mi ejercicio', 'custom exercise');
 });
 test('first-time loads never go below an empty barbell', () => {
   const { startingWeight } = src('core/utils/workout.ts');

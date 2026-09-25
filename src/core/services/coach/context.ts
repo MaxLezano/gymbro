@@ -2,7 +2,7 @@ import type { NutritionMetrics, UserProfile, WorkoutSession } from '../../types'
 import { EXERCISES, getExercise, type CatalogExercise } from '../../../data/catalog';
 import { fitsHomeEquipment } from '../../utils/equipment';
 import { generateRoutine, type TrainingFocus } from '../../utils/programGenerator';
-import { formatRelativeDate, personalRecords, sessionDate } from '../../utils/workout';
+import { formatRelativeDate, logDisplayName, personalRecords, sessionDate } from '../../utils/workout';
 import { ACTIVITY_LABELS, DIETARY_CONDITION_LABELS, GOAL_LABELS, HOME_EQUIPMENT_OPTIONS, LEVEL_LABELS, LOCATION_LABELS, PRIORITY_LABELS, labelTarget } from '../../i18n/labels';
 import type { ParsedQuery } from './intents';
 
@@ -37,7 +37,7 @@ export function describeHistory(history: WorkoutSession[]): string {
       .slice(0, 5)
       .map((log) => {
         const top = log.sets.reduce((best, set) => (set.weightKg * set.reps > best.weightKg * best.reps ? set : best), log.sets[0]);
-        return top ? `${log.exerciseName} ${top.weightKg}kg×${top.reps}` : log.exerciseName;
+        return top ? `${logDisplayName(log)} ${top.weightKg}kg×${top.reps}` : logDisplayName(log);
       })
       .join('; ');
     return `- ${formatRelativeDate(sessionDate(session))}: ${session.title} (${lifts})`;

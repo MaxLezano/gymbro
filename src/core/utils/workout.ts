@@ -46,6 +46,10 @@ export function findLastPerformance(
   return null;
 }
 
+/** Name in the current language: saved sessions keep the name they were logged with (old ones in English). */
+export const logDisplayName = (log: Pick<WorkoutExerciseLog, 'exerciseId' | 'exerciseName'>) =>
+  getExercise(log.exerciseId)?.displayName ?? log.exerciseName;
+
 /**
  * First-time load with no history: an empty bar for barbells (never below the
  * bar itself), light loads for free weights, nothing for bands, balls or cardio.

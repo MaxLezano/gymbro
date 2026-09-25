@@ -9,6 +9,7 @@ import {
   formatMinutes,
   formatRelativeDate,
   formatVolume,
+  logDisplayName,
   personalRecords,
   pluralize,
   sessionDate,
@@ -67,7 +68,7 @@ function SessionCard({ session }: { session: WorkoutSession }) {
           {session.exercises.map((log, index) => (
             <View key={`${log.exerciseId}_${index}`} style={styles.sessionExercise}>
               <AppText variant="subhead" style={styles.bold} numberOfLines={1}>
-                {log.exerciseName}
+                {logDisplayName(log)}
               </AppText>
               <AppText variant="caption" color="textSecondary">
                 {log.sets.filter((set) => set.completed).map((set) => `${set.weightKg > 0 ? `${set.weightKg} kg` : 'PC'} × ${set.reps}`).join('   ')}

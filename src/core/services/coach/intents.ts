@@ -100,7 +100,11 @@ export const OFF_TOPIC_REPLY =
 /** Catalog names (normalized), longest first so "barbell decline pullover" beats "pullover". */
 let catalogNames: { name: string; id: string }[] | null = null;
 function exerciseByCatalogName(text: string): string | undefined {
-  catalogNames ??= EXERCISES.map((exercise) => ({ name: normalizeText(exercise.displayName), id: exercise.id }))
+  // Both the translated and the original English name, so either one is recognized.
+  catalogNames ??= EXERCISES.flatMap((exercise) => [
+    { name: normalizeText(exercise.displayName), id: exercise.id },
+    { name: normalizeText(exercise.name), id: exercise.id },
+  ])
     .filter((item) => item.name.length >= 6)
     .sort((a, b) => b.name.length - a.name.length);
   return catalogNames.find((item) => text.includes(item.name))?.id;
