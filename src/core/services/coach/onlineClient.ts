@@ -154,6 +154,15 @@ export function extractJson(content: string): RawReply | null {
   return null;
 }
 
+/**
+ * Service messages disguised as answers ("doesn't have enough credits", "top up"):
+ * no tokens were generated or the text points to the provider's billing pages.
+ */
+export function isProviderNotice(content: string, totalTokens?: unknown): boolean {
+  if (totalTokens === 0) return true;
+  return /pollinations\.ai|enough credits|top[ -]?up|api key|rate limit|quota/i.test(content) && !content.includes('"text"');
+}
+
 export async function askOnline(
   systemPrompt: string,
   history: CoachMessage[],
@@ -201,6 +210,8 @@ export async function askOnline(
 
       const data = await response.json();
       const content: string = data?.choices?.[0]?.message?.content ?? '';
+      // The provider answers quota/billing problems as a normal 200 "reply": never show it as the coach.
+      if (isProviderNotice(content, data?.usage?.total_tokens)) throw new Error('Provider notice');
       const parsed = extractJson(content);
       if (!parsed?.text && !parsed?.blocks?.length) {
         // A genuine plain-text answer is still useful; broken JSON must never reach the UI.
