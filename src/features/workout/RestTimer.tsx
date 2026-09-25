@@ -33,11 +33,6 @@ export function RestTimer({ endsAt, totalSeconds, nextLabel, onAdjust, onDismiss
           <AppText variant="metric" style={{ color: finished ? theme.colors.success : theme.colors.text }}>
             {formatDuration(remaining)}
           </AppText>
-          {nextLabel && (
-            <AppText variant="caption" color="textSecondary" numberOfLines={1}>
-              Siguiente: {nextLabel}
-            </AppText>
-          )}
         </View>
         {!finished && (
           <View style={styles.controls}>
@@ -47,6 +42,11 @@ export function RestTimer({ endsAt, totalSeconds, nextLabel, onAdjust, onDismiss
         )}
         <Button label={finished ? 'Listo' : 'Saltar'} variant={finished ? 'primary' : 'secondary'} size="md" onPress={onDismiss} style={styles.center} />
       </View>
+      {nextLabel && (
+        <AppText variant="subhead" color="textSecondary" numberOfLines={2} style={styles.next}>
+          Siguiente: <AppText variant="subhead" style={styles.label}>{nextLabel}</AppText>
+        </AppText>
+      )}
       <ProgressBar
         value={totalSeconds > 0 ? remaining / totalSeconds : 0}
         height={4}
@@ -81,6 +81,9 @@ const styles = StyleSheet.create({
   },
   label: {
     fontWeight: '700',
+  },
+  next: {
+    marginTop: -theme.spacing.xs,
   },
   center: {
     alignSelf: 'center',

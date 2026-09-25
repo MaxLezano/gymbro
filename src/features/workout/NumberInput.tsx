@@ -9,6 +9,7 @@ interface NumberInputProps {
   accessibilityLabel: string;
   style?: StyleProp<TextStyle>;
   completed?: boolean;
+  autoFocus?: boolean;
 }
 
 const format = (value: number) => (value === 0 ? '' : String(value));
@@ -24,6 +25,7 @@ export const NumberInput = React.memo(function NumberInput({
   accessibilityLabel,
   style,
   completed,
+  autoFocus,
 }: NumberInputProps) {
   const [text, setText] = useState(format(value));
   const [lastValue, setLastValue] = useState(value);
@@ -51,6 +53,7 @@ export const NumberInput = React.memo(function NumberInput({
       placeholder="0"
       placeholderTextColor={theme.colors.textDisabled}
       selectTextOnFocus
+      autoFocus={autoFocus}
       maxLength={decimals ? 5 : 3}
       selectionColor={theme.colors.primary}
       accessibilityLabel={accessibilityLabel}

@@ -50,13 +50,32 @@ function describeSet(session: WorkoutSession, position: Position): string {
 // Pieces
 // ---------------------------------------------------------------------------
 
-function ValueTile({ label, value, unit, onMinus, onPlus }: { label: string; value: string; unit?: string; onMinus: () => void; onPlus: () => void }) {
+function ValueTile({
+  label,
+  value,
+  unit,
+  valueLabel,
+  plusLabel,
+  minusDisabled,
+  onMinus,
+  onPlus,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  /** Spoken value when the visible one is an abbreviation ("PC"). */
+  valueLabel?: string;
+  plusLabel?: string;
+  minusDisabled?: boolean;
+  onMinus: () => void;
+  onPlus: () => void;
+}) {
   return (
     <View style={styles.tile}>
       <AppText variant="overline" color="textMuted">
         {label}
       </AppText>
-      <View style={styles.tileValue}>
+      <View style={styles.tileValue} accessible={!!valueLabel} accessibilityLabel={valueLabel}>
         <AppText style={styles.tileNumber}>{value}</AppText>
         {unit ? (
           <AppText variant="subhead" color="textMuted" style={styles.tileUnit}>
@@ -65,11 +84,18 @@ function ValueTile({ label, value, unit, onMinus, onPlus }: { label: string; val
         ) : null}
       </View>
       <View style={styles.tileButtons}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Menos ${label.toLowerCase()}`} onPress={onMinus} style={({ pressed }) => [styles.tileButton, pressed && styles.pressed]}>
-          <Ionicons name="remove" size={22} color={theme.colors.text} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Menos ${label.toLowerCase()}`}
+          accessibilityState={{ disabled: !!minusDisabled }}
+          disabled={minusDisabled}
+          onPress={onMinus}
+          style={({ pressed }) => [styles.tileButton, pressed && styles.pressed]}
+        >
+          <Ionicons name="remove" size={22} color={minusDisabled ? theme.colors.textDisabled : theme.colors.text} />
         </Pressable>
         <View style={styles.tileDivider} />
-        <Pressable accessibilityRole="button" accessibilityLabel={`Más ${label.toLowerCase()}`} onPress={onPlus} style={({ pressed }) => [styles.tileButton, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={plusLabel ?? `Más ${label.toLowerCase()}`} onPress={onPlus} style={({ pressed }) => [styles.tileButton, pressed && styles.pressed]}>
           <Ionicons name="add" size={22} color={theme.colors.text} />
         </Pressable>
       </View>
@@ -396,7 +422,10 @@ export function CoachMode({ session, onFinish }: { session: WorkoutSession; onFi
             <View style={styles.tiles}>
               {exercise?.equipment !== 'body weight' || set.weightKg > 0 ? (
                 <ValueTile label="Peso" value={`${set.weightKg}`} unit="kg" onMinus={() => update({ weightKg: Math.max(0, set.weightKg - step) })} onPlus={() => update({ weightKg: set.weightKg + step })} />
-              ) : null}
+              ) : (
+                // Bodyweight: "PC" instead of a meaningless 0 kg; + adds load (lastre), − back to 0 returns here.
+                <ValueTile label="Peso" value="PC" valueLabel="Peso corporal" plusLabel="Añadir lastre" minusDisabled onMinus={() => undefined} onPlus={() => update({ weightKg: step })} />
+              )}
               <ValueTile label="Repeticiones" value={`${set.reps}`} onMinus={() => update({ reps: Math.max(1, set.reps - 1) })} onPlus={() => update({ reps: set.reps + 1 })} />
             </View>
 

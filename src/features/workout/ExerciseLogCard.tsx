@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -30,6 +30,10 @@ const SetRow = React.memo(function SetRow({
   setIndex,
   previous,
   isBodyweight,
+  showPrevious,
+  bodyweightMode,
+  autoFocusWeight,
+  onAddLoad,
   onCompleted,
 }: {
   set: SetLog;
@@ -37,6 +41,12 @@ const SetRow = React.memo(function SetRow({
   setIndex: number;
   previous?: SetLog;
   isBodyweight: boolean;
+  /** False when this exercise has no previous data at all: the column is hidden. */
+  showPrevious: boolean;
+  /** Bodyweight exercise without load: the weight cell reads "PC" instead of a disabled 0. */
+  bodyweightMode: boolean;
+  autoFocusWeight: boolean;
+  onAddLoad: (setId: string) => void;
   onCompleted: () => void;
 }) {
   const toggle = () => {
@@ -71,22 +81,42 @@ const SetRow = React.memo(function SetRow({
           {set.setNumber}
         </AppText>
       </Pressable>
-      <View style={styles.colPrev}>
-        <AppText variant="caption" color="textMuted" numberOfLines={1}>
-          {previous ? `${previous.weightKg > 0 ? previous.weightKg : 'PC'}×${previous.reps}` : '—'}
-        </AppText>
+      {showPrevious && (
+        <View style={styles.colPrev}>
+          <AppText variant="caption" color="textMuted" numberOfLines={1}>
+            {previous ? `${previous.weightKg > 0 ? previous.weightKg : 'PC'}×${previous.reps}` : '—'}
+          </AppText>
+        </View>
+      )}
+      <View style={[styles.colInput, !showPrevious && styles.colInputWide]}>
+        {bodyweightMode ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Peso corporal"
+            accessibilityHint="Toca para añadir lastre"
+            onPress={() => {
+              FeedbackService.lightTap();
+              onAddLoad(set.id);
+            }}
+            style={({ pressed }) => [styles.bodyweightCell, set.completed && styles.bodyweightCellDone, pressed && styles.checkPressed]}
+          >
+            <AppText variant="callout" color={set.completed ? 'success' : 'textSecondary'} style={styles.bold}>
+              PC
+            </AppText>
+          </Pressable>
+        ) : (
+          <NumberInput
+            value={set.weightKg}
+            decimals
+            completed={set.completed}
+            autoFocus={autoFocusWeight}
+            accessibilityLabel={`Peso serie ${set.setNumber}`}
+            onChange={(weightKg) => appActions.updateSet(exerciseIndex, setIndex, { weightKg })}
+            style={isBodyweight && set.weightKg === 0 ? styles.bodyweightHint : undefined}
+          />
+        )}
       </View>
-      <View style={styles.colInput}>
-        <NumberInput
-          value={set.weightKg}
-          decimals
-          completed={set.completed}
-          accessibilityLabel={`Peso serie ${set.setNumber}`}
-          onChange={(weightKg) => appActions.updateSet(exerciseIndex, setIndex, { weightKg })}
-          style={isBodyweight && set.weightKg === 0 ? styles.bodyweightHint : undefined}
-        />
-      </View>
-      <View style={styles.colInput}>
+      <View style={[styles.colInput, !showPrevious && styles.colInputWide]}>
         <NumberInput
           value={set.reps}
           completed={set.completed}
@@ -123,6 +153,13 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
   const allDone = done === log.sets.length && log.sets.length > 0;
   const [editingRest, setEditingRest] = useState(false);
   const rest = log.restSeconds ?? 90;
+  const showPrevious = (previousSets?.length ?? 0) > 0;
+  // Bodyweight work shows "PC" until the athlete adds load (or already used load before).
+  const [loadFocusSetId, setLoadFocusSetId] = useState<string | null>(null);
+  const bodyweightMode =
+    isBodyweight && loadFocusSetId === null && !previousSets?.some((set) => set.weightKg > 0) && log.sets.every((set) => set.weightKg === 0);
+  const addLoad = useCallback((setId: string) => setLoadFocusSetId(setId), []);
+  const caption = [exercise ? labelTarget(exercise.target) : null, log.targetReps ? `${log.targetReps} reps` : null].filter(Boolean).join(' · ');
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuActions: SheetAction[] = [
@@ -163,40 +200,37 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
           }
           style={styles.headerMain}
         >
-          <ExerciseThumb uri={exercise?.thumbnailUrl} size={48} />
+          <ExerciseThumb uri={exercise?.thumbnailUrl} size={40} />
           <View style={styles.headerTexts}>
             <AppText variant="headline" numberOfLines={2}>
               {log.exerciseName}
             </AppText>
-            <AppText variant="caption" color="textMuted" numberOfLines={2}>
-              {[exercise ? labelTarget(exercise.target) : null, log.targetReps ? `Objetivo ${log.targetReps} reps` : null]
-                .filter(Boolean)
-                .join(' · ')}
-            </AppText>
+            {!!caption && (
+              <AppText variant="caption" color="textMuted" numberOfLines={1}>
+                {caption}
+              </AppText>
+            )}
           </View>
         </Pressable>
-        <IconButton icon="ellipsis-horizontal" size={36} onPress={openMenu} accessibilityLabel={`Opciones de ${log.exerciseName}`} />
-      </View>
-
-      <View style={styles.restBar}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Descanso ${formatRest(rest)}. Toca para cambiarlo`}
           accessibilityState={{ expanded: editingRest }}
-          hitSlop={6}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
           onPress={() => {
             FeedbackService.lightTap();
             setEditingRest((value) => !value);
           }}
           style={({ pressed }) => [styles.restPill, editingRest && styles.restPillOpen, pressed && styles.checkPressed]}
         >
-          <Ionicons name="timer-outline" size={15} color={theme.colors.primary} />
-          <AppText variant="caption" color="textSecondary" style={styles.bold}>
-            Descanso {formatRest(rest)}
+          <Ionicons name="timer-outline" size={14} color={theme.colors.primary} />
+          <AppText variant="caption" color="textSecondary" style={[styles.bold, styles.tabular]}>
+            {formatRest(rest)}
           </AppText>
-          <Ionicons name={editingRest ? 'chevron-up' : 'chevron-down'} size={14} color={theme.colors.textMuted} />
         </Pressable>
+        <IconButton icon="ellipsis-horizontal" size={36} onPress={openMenu} accessibilityLabel={`Opciones de ${log.exerciseName}`} />
       </View>
+
       {editingRest && (
         <View style={styles.restPresets}>
           {REST_PRESETS.map((seconds) => (
@@ -218,13 +252,15 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
         <AppText variant="overline" color="textMuted" style={styles.headSet}>
           Serie
         </AppText>
-        <AppText variant="overline" color="textMuted" style={styles.colPrev}>
-          Anterior
+        {showPrevious && (
+          <AppText variant="overline" color="textMuted" style={styles.colPrev}>
+            Anterior
+          </AppText>
+        )}
+        <AppText variant="overline" color="textMuted" style={[styles.colInput, !showPrevious && styles.colInputWide, styles.center]}>
+          {bodyweightMode ? 'Peso' : 'Kg'}
         </AppText>
-        <AppText variant="overline" color="textMuted" style={[styles.colInput, styles.center]}>
-          Kg
-        </AppText>
-        <AppText variant="overline" color="textMuted" style={[styles.colInput, styles.center]}>
+        <AppText variant="overline" color="textMuted" style={[styles.colInput, !showPrevious && styles.colInputWide, styles.center]}>
           Reps
         </AppText>
         <View style={styles.colCheck} />
@@ -238,6 +274,10 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
           setIndex={setIndex}
           previous={previousSets?.[setIndex]}
           isBodyweight={isBodyweight}
+          showPrevious={showPrevious}
+          bodyweightMode={bodyweightMode}
+          autoFocusWeight={loadFocusSetId === set.id}
+          onAddLoad={addLoad}
           onCompleted={() => onSetCompleted(index, log.restSeconds ?? 90)}
         />
       ))}
@@ -254,7 +294,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: theme.colors.border,
-    paddingVertical: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xs,
   },
   cardDone: {
     borderColor: 'rgba(50, 215, 75, 0.35)',
@@ -263,31 +304,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.md,
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
+    gap: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
   },
   headerMain: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
+    minHeight: 44,
   },
   headerTexts: {
     flex: 1,
-    gap: 2,
-  },
-  restBar: {
-    flexDirection: 'row',
-    paddingHorizontal: theme.spacing.md,
-    marginTop: -theme.spacing.xs,
-    marginBottom: theme.spacing.md,
   },
   restPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 6,
+    gap: 4,
+    height: 30,
+    paddingHorizontal: theme.spacing.sm,
     borderRadius: theme.radius.pill,
     backgroundColor: theme.colors.surfaceAlt,
     borderWidth: StyleSheet.hairlineWidth * 2,
@@ -301,8 +336,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
-    marginTop: -theme.spacing.xs,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -335,6 +369,9 @@ const styles = StyleSheet.create({
     width: 72,
     marginHorizontal: 4,
   },
+  colInputWide: {
+    flex: 1,
+  },
   colCheck: {
     width: 48,
     alignItems: 'flex-end',
@@ -347,6 +384,21 @@ const styles = StyleSheet.create({
   },
   bodyweightHint: {
     borderStyle: 'dashed',
+  },
+  bodyweightCell: {
+    height: 40,
+    borderRadius: theme.radius.sm,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderStyle: 'dashed',
+    borderColor: theme.colors.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bodyweightCellDone: {
+    borderColor: 'transparent',
+  },
+  tabular: {
+    fontVariant: ['tabular-nums'],
   },
   check: {
     width: 40,
@@ -367,6 +419,6 @@ const styles = StyleSheet.create({
   },
   addSet: {
     alignSelf: 'center',
-    marginTop: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
   },
 });
