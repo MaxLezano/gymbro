@@ -9,6 +9,8 @@ import type { CoachBlock, CoachMessage, MealPlanItem } from './types';
  * free tiers (Gemini, then Workers AI), so provider changes never need a new APK.
  */
 const ENDPOINT = 'https://gymbro-coach.gymbro-coach-worker.workers.dev/chat';
+/** Lets only this app use the proxy (set in .env.local, same value as the Worker's APP_KEY secret). */
+const APP_KEY = process.env.EXPO_PUBLIC_COACH_KEY ?? '';
 const TIMEOUT_MS = 40_000;
 const RETRY_DELAY_MS = 1_200;
 
@@ -184,7 +186,7 @@ export async function askOnline(
     const request = () =>
       fetch(ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-App-Key': APP_KEY },
         signal: controller.signal,
         body: JSON.stringify({ messages }),
       });

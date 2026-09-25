@@ -7,7 +7,7 @@
  *   2. Workers AI (Cloudflare free daily allowance)
  * When both fail the app falls back to its offline engine.
  *
- * Contract: POST /chat { messages: [{ role, content }] }
+ * Contract: POST /chat (header X-App-Key) { messages: [{ role, content }] }
  *        -> 200 { content, provider } | 4xx/5xx { error }
  */
 
@@ -16,6 +16,14 @@ const PROVIDER_TIMEOUT_MS = 20_000;
 const MAX_MESSAGES = 10;
 const MAX_TOTAL_CHARS = 24_000;
 const ROLES = new Set(['system', 'user', 'assistant']);
+
+/** Constant-time comparison, so the key cannot be guessed byte by byte from response timings. */
+function sameKey(given, expected) {
+  if (given.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i += 1) diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
+}
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -66,6 +74,10 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/health') return json({ ok: true });
     if (url.pathname !== '/chat' || request.method !== 'POST') return json({ error: 'Not found' }, 404);
+
+    // Only the app knows this key: a found URL alone cannot spend the free quotas.
+    // (It ships inside the APK, so it raises the bar rather than being a secret; Play Integrity comes with the store release.)
+    if (env.APP_KEY && !sameKey(request.headers.get('X-App-Key') ?? '', env.APP_KEY)) return json({ error: 'Unauthorized' }, 401);
 
     // Per-IP throttle so a leaked URL cannot drain the shared daily quotas.
     const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
