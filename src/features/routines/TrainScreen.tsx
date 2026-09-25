@@ -14,6 +14,7 @@ import { routineCompatibility } from '../../core/utils/equipment';
 import { FeedbackService } from '../../core/services/feedback';
 import { startFreeWorkout, startRoutineWorkout } from '../workout/startWorkout';
 import { RoutineCard } from './RoutineCard';
+import { TrainingReminderCard } from './TrainingReminderCard';
 
 type Filter = 'for_you' | 'home' | 'gym';
 
@@ -131,6 +132,7 @@ export function TrainScreen() {
               onPress={() => router.push('/program')}
             />
           )}
+          <TrainingReminderCard />
         </View>
 
         {mine.length > 0 && (

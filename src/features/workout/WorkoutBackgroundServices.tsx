@@ -34,6 +34,7 @@ export function WorkoutBackgroundServices() {
     const url = lastResponse?.notification.request.content.data?.url;
     if (url === '/workout' && appActions.getActiveWorkout()) router.push('/workout');
     else if (url === '/progress') router.navigate('/progress');
+    else if (url === '/train') router.navigate('/train');
   }, [lastResponse]);
 
   const endsAt = restTimer?.endsAt;

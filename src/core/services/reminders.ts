@@ -24,7 +24,39 @@ export async function allowReminders(): Promise<boolean> {
   return (await Notifications.requestPermissionsAsync()).granted;
 }
 
+const trainingId = (weekday: number) => `training-${weekday}`;
+const ALL_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
+
+/** Sensible default days for a weekly frequency (expo weekdays: 1 = Sunday). */
+export function defaultTrainingDays(daysPerWeek: number): number[] {
+  const byCount: Record<number, number[]> = {
+    1: [2],
+    2: [2, 5],
+    3: [2, 4, 6],
+    4: [2, 3, 5, 6],
+    5: [2, 3, 4, 5, 6],
+    6: [2, 3, 4, 5, 6, 7],
+  };
+  return byCount[Math.max(1, Math.min(6, Math.round(daysPerWeek)))];
+}
+
 export const Reminders = {
+  /** One weekly notification per chosen day; an empty list turns them all off. */
+  async setTraining(weekdays: number[], hour: number, minute: number): Promise<boolean> {
+    await Promise.all(ALL_WEEKDAYS.map((day) => Notifications.cancelScheduledNotificationAsync(trainingId(day)).catch(() => undefined)));
+    if (weekdays.length === 0) return true;
+    if (!(await allowReminders())) return false;
+    await ensureChannel();
+    for (const weekday of weekdays) {
+      await Notifications.scheduleNotificationAsync({
+        identifier: trainingId(weekday),
+        content: { title: 'Hoy toca entrenar', body: 'Tu próxima sesión te espera en GymBro.', data: { url: '/train' } },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday, hour, minute, channelId: CHANNEL_ID },
+      });
+    }
+    return true;
+  },
+
   /** Monday 8:00, every week. Scheduling again replaces it (fixed id). */
   async setWeighIn(enabled: boolean): Promise<boolean> {
     await Notifications.cancelScheduledNotificationAsync(WEIGH_IN_ID).catch(() => undefined);

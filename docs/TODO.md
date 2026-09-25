@@ -22,5 +22,5 @@ Tick each item once it is done **and** checked on the emulator.
 - [x] Body weight: progress chart and a weekly weigh-in reminder (Monday 8:00).
 - [x] Automatic warm-up sets for the first heavy lift of the day (checklist, never logged as volume).
 - [x] Plate calculator: plates per side for barbell lifts (coach and list views).
-- [ ] Training reminders on the program's days.
+- [x] Training reminders on the chosen days and time (defaults from the program frequency).
 - [ ] Suggested deload week when progress stalls.

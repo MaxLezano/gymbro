@@ -94,6 +94,8 @@ export interface UserProfile {
   weightLog?: { date: string; kg: number }[];
   /** Weekly local notification reminding to weigh in. */
   weighInReminder?: boolean;
+  /** Weekly training reminders: expo weekdays (1 = Sunday) and local time. */
+  trainingReminder?: { days: number[]; hour: number; minute: number };
   // Optional Google account link (display only; data stays on device)
   email?: string;
   photoUrl?: string;
