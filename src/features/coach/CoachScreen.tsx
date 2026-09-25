@@ -4,7 +4,6 @@ import {
   Animated,
   FlatList,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   TextInput,
@@ -247,7 +246,7 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
         <IconButton icon="trash-outline" size={38} onPress={clear} disabled={messages.length === 0} accessibilityLabel="Borrar conversación" />
       </View>
 
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {empty ? (
           <View style={styles.welcome}>
             <View style={styles.welcomeIcon}>

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { theme } from '../../core/theme';
 import { useNow } from '../../core/hooks/useNow';
@@ -174,7 +174,7 @@ export function WorkoutScreen() {
       {view === 'coach' && session.exercises.length > 0 ? (
         <CoachMode session={session} onFinish={finish} />
       ) : (
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.flex} behavior="padding">
           <ScrollView
             contentContainerStyle={styles.scroll}
             keyboardShouldPersistTaps="handled"

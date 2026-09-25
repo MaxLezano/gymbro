@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { theme } from '../../core/theme';
 import type { ExperienceLevel, Routine, RoutineExercise } from '../../core/types';
@@ -112,7 +112,7 @@ export function RoutineBuilderScreen({ editId, fromId }: { editId?: string; from
         onClose={() => router.back()}
         right={<Button label="Guardar" size="sm" onPress={save} />}
       />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.field}>
             <AppText variant="overline" color="textMuted">
