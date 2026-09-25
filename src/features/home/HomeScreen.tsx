@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
 import { calculateNutritionPlan } from '../../core/utils/nutrition';
-import { generateRoutine, suggestFocus } from '../../core/utils/programGenerator';
+import { estimateMinutes, generateRoutine, suggestFocus } from '../../core/utils/programGenerator';
 import { getExercise } from '../../data/catalog';
 import {
   countCompletedSets,
@@ -17,6 +17,7 @@ import {
   weekStreak,
 } from '../../core/utils/workout';
 import {
+  appActions,
   registerDraftRoutine,
   selectActiveWorkout,
   selectCustomRoutines,
@@ -25,7 +26,7 @@ import {
   useAppStore,
 } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
-import { AppText, Button, Card, CoverImage, ProgressBar, SectionHeader } from '../../components/ui';
+import { AppText, Button, Card, CoverImage, IconButton, ProgressBar, SectionHeader } from '../../components/ui';
 import { coverForRoutine } from '../../data/covers';
 import { nextProgramRoutine, profileCompletion, programRoutines } from '../../core/utils/program';
 import { isGoogleSignInAvailable } from '../../core/services/googleAuth';
@@ -105,7 +106,7 @@ export function HomeScreen() {
               <View style={styles.streak}>
                 <Ionicons name="flame" size={16} color={streak > 0 ? theme.colors.primary : theme.colors.textMuted} />
                 <AppText variant="subhead" color={streak > 0 ? 'primary' : 'textMuted'} style={styles.bold}>
-                  {streak} {streak === 1 ? 'semana' : 'semanas'}
+                  {streak > 0 ? `${streak} ${streak === 1 ? 'semana' : 'semanas'}` : 'Empieza tu racha hoy'}
                 </AppText>
               </View>
             </View>
@@ -148,7 +149,7 @@ export function HomeScreen() {
                     {suggestion.title}
                   </AppText>
                   <AppText variant="caption" style={styles.onImageMuted}>
-                    {suggestion.exercises.length} ejercicios · ~{suggestion.estimatedMinutes} min ·{' '}
+                    {suggestion.exercises.length} ejercicios · ~{estimateMinutes(suggestion.exercises)} min ·{' '}
                     {suggestion.targetLocation === 'home' ? 'En casa' : 'Gimnasio'}
                   </AppText>
                 </CoverImage>
@@ -166,23 +167,6 @@ export function HomeScreen() {
                 </View>
               </Card>
             </View>
-          )}
-
-          {completion.percent < 100 && (
-            <Card onPress={() => router.push(completion.missing[0]?.key === 'program' ? '/program' : '/profile')} accessibilityLabel="Completar perfil">
-              <View style={styles.rowBetween}>
-                <AppText variant="callout" style={styles.bold}>
-                  Tu perfil está al {completion.percent}%
-                </AppText>
-                <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
-              </View>
-              <View style={styles.completionBar}>
-                <ProgressBar value={completion.percent / 100} />
-              </View>
-              <AppText variant="caption" color="textSecondary">
-                Siguiente: {completion.missing[0]?.label}. Cuanto más completo, más preciso tu plan.
-              </AppText>
-            </Card>
           )}
 
           <Card>
@@ -228,6 +212,39 @@ export function HomeScreen() {
               <MacroSummary plan={plan} compact />
             </View>
           </Card>
+
+          {completion.percent < 100 && !profile.profileNudgeDismissed && (
+            // The close button sits outside the pressable area so screen readers reach both.
+            <Card padding={0} style={styles.nudge}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Tu perfil está al ${completion.percent}%. Completar perfil`}
+                onPress={() => {
+                  FeedbackService.selection();
+                  router.push(completion.missing[0]?.key === 'program' ? '/program' : '/profile');
+                }}
+                style={({ pressed }) => [styles.nudgeMain, pressed && styles.promptPressed]}
+              >
+                <AppText variant="callout" style={styles.bold}>
+                  Tu perfil está al {completion.percent}%
+                </AppText>
+                <View style={styles.completionBar}>
+                  <ProgressBar value={completion.percent / 100} />
+                </View>
+                <AppText variant="caption" color="textSecondary">
+                  Siguiente: {completion.missing[0]?.label}. Cuanto más completo, más preciso tu plan.
+                </AppText>
+              </Pressable>
+              <IconButton
+                icon="close"
+                size={32}
+                iconSize={16}
+                onPress={() => appActions.patchProfile({ profileNudgeDismissed: true })}
+                accessibilityLabel="Ocultar el aviso del perfil"
+                style={styles.nudgeClose}
+              />
+            </Card>
+          )}
 
           {lastSession && (
             <Card onPress={() => router.navigate('/progress')} accessibilityLabel="Ver progreso">
@@ -339,6 +356,21 @@ const styles = StyleSheet.create({
   },
   completionBar: {
     marginVertical: theme.spacing.md,
+  },
+  nudge: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.sm,
+  },
+  nudgeMain: {
+    flex: 1,
+    padding: theme.spacing.lg,
+    paddingRight: 0,
+    borderRadius: theme.radius.lg,
+  },
+  nudgeClose: {
+    marginTop: theme.spacing.sm,
+    marginRight: theme.spacing.sm,
   },
   thumbs: {
     flexDirection: 'row',
