@@ -95,7 +95,7 @@
   },
   "goals": {
     "fat_loss": { "title": "Lose fat", "short": "−400 kcal deficit", "description": "Get lean while keeping muscle" },
-    "maintenance": { "title": "Recomposition", "short": "Maintenance", "description": "Same weight, better composition" },
+    "maintenance": { "title": "Recomposition", "short": "Maintenance", "description": "Lose fat and build muscle at the same time, with high protein" },
     "muscle_gain": { "title": "Build muscle", "short": "+250 kcal surplus", "description": "Lean bulk with little fat" },
     "aggressive_bulk": { "title": "Aggressive bulk", "short": "+500 kcal surplus", "description": "Maximum size and strength gains" }
   },

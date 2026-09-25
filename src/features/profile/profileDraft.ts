@@ -24,7 +24,8 @@ export interface ProfileDraft {
   hipCm: string;
   targetBodyFatPercent: string;
   activityLevel: ActivityLevel;
-  fitnessGoal: FitnessGoal;
+  /** Null until the athlete picks one during onboarding: nothing is preselected. */
+  fitnessGoal: FitnessGoal | null;
   trainingLocation: TrainingLocation;
   experience: ExperienceLevel;
   homeEquipment: HomeEquipment[];
@@ -68,7 +69,7 @@ function draftFromProfile(profile: UserProfile): ProfileDraft {
     hipCm: toText(profile.hipCm),
     targetBodyFatPercent: toText(profile.targetBodyFatPercent),
     activityLevel: profile.activityLevel,
-    fitnessGoal: profile.fitnessGoal,
+    fitnessGoal: profile.hasCompletedOnboarding ? profile.fitnessGoal : null,
     trainingLocation: profile.trainingLocation,
     experience: profile.experience,
     homeEquipment: profile.homeEquipment,
@@ -113,7 +114,7 @@ export function profileFromDraft(base: UserProfile, draft: ProfileDraft): UserPr
     hipCm: draft.gender === 'female' ? optional(draft.hipCm) : undefined,
     targetBodyFatPercent: optional(draft.targetBodyFatPercent),
     activityLevel: draft.activityLevel,
-    fitnessGoal: draft.fitnessGoal,
+    fitnessGoal: draft.fitnessGoal ?? base.fitnessGoal,
     trainingLocation: draft.trainingLocation,
     experience: draft.experience,
     homeEquipment: draft.homeEquipment.includes('body_weight') ? draft.homeEquipment : ['body_weight', ...draft.homeEquipment],

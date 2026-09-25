@@ -175,66 +175,38 @@ function OptionCard({
   );
 }
 
-/**
- * "Perder grasa" and "Ganar músculo" can be combined: doing both at once is a
- * recomposition (maintenance calories, high protein). "Volumen intenso" is a big
- * surplus, so it stands alone. The stored goal stays a single FitnessGoal.
- */
-type GoalChoice = 'lose' | 'gain' | 'bulk';
-
-function choicesFor(goal: FitnessGoal): Set<GoalChoice> {
-  if (goal === 'fat_loss') return new Set(['lose']);
-  if (goal === 'muscle_gain') return new Set(['gain']);
-  if (goal === 'aggressive_bulk') return new Set(['bulk']);
-  return new Set(['lose', 'gain']);
-}
-
-function goalFor(choices: Set<GoalChoice>): FitnessGoal {
-  if (choices.has('bulk')) return 'aggressive_bulk';
-  if (choices.has('lose') && choices.has('gain')) return 'maintenance';
-  return choices.has('lose') ? 'fat_loss' : 'muscle_gain';
-}
-
-const GOAL_CHOICES: { id: GoalChoice; goal: FitnessGoal; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'lose', goal: 'fat_loss', icon: 'trending-down' },
-  { id: 'gain', goal: 'muscle_gain', icon: 'trending-up' },
-  { id: 'bulk', goal: 'aggressive_bulk', icon: 'rocket-outline' },
+/** One clear choice: recomposition is its own goal, not a hidden lose + gain combination. */
+export const GOAL_OPTIONS: { goal: FitnessGoal; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { goal: 'fat_loss', icon: 'trending-down' },
+  { goal: 'maintenance', icon: 'swap-vertical' },
+  { goal: 'muscle_gain', icon: 'trending-up' },
+  { goal: 'aggressive_bulk', icon: 'rocket-outline' },
 ];
 
 export function GoalSection({ draft, update }: { draft: ProfileDraft; update: Update }) {
-  const choices = choicesFor(draft.fitnessGoal);
-  const toggle = (id: GoalChoice) => {
-    let next: Set<GoalChoice>;
-    if (id === 'bulk') next = new Set(['bulk']);
-    else {
-      next = new Set([...choices].filter((choice) => choice !== 'bulk'));
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-    }
-    if (next.size > 0) update('fitnessGoal', goalFor(next));
-  };
-  const plan = GOAL_LABELS[draft.fitnessGoal];
+  const selected = draft.fitnessGoal;
+  const plan = selected ? GOAL_LABELS[selected] : null;
 
   return (
-    <View style={styles.options}>
-      {GOAL_CHOICES.map((item) => (
+    <View style={styles.options} accessibilityRole="radiogroup">
+      {GOAL_OPTIONS.map((item) => (
         <OptionCard
-          key={item.id}
+          key={item.goal}
           icon={item.icon}
           title={GOAL_LABELS[item.goal].title}
           description={GOAL_LABELS[item.goal].description}
-          selected={choices.has(item.id)}
-          multi={item.id !== 'bulk'}
-          onPress={() => toggle(item.id)}
+          selected={selected === item.goal}
+          onPress={() => update('fitnessGoal', item.goal)}
         />
       ))}
-      <View style={styles.hintRow}>
-        <Ionicons name="flag-outline" size={16} color={theme.colors.primary} />
-        <AppText variant="subhead" color="textSecondary" style={styles.flex}>
-          Tu plan: <AppText variant="subhead" style={styles.bold}>{plan.title}</AppText> · {plan.short}
-          {draft.fitnessGoal === 'maintenance' ? '. Pierdes grasa y ganas músculo a la vez, con proteína alta.' : ''}
-        </AppText>
-      </View>
+      {plan && (
+        <View style={styles.hintRow}>
+          <Ionicons name="flag-outline" size={16} color={theme.colors.primary} />
+          <AppText variant="subhead" color="textSecondary" style={styles.flex}>
+            Tu plan: <AppText variant="subhead" style={styles.bold}>{plan.title}</AppText> · {plan.short}
+          </AppText>
+        </View>
+      )}
     </View>
   );
 }
@@ -403,6 +375,18 @@ export function FrequencySection({ draft, update }: { draft: ProfileDraft; updat
 
 const DURATIONS = [30, 45, 60, 75, 90];
 
+/**
+ * What the program generator actually builds for each length: it tops out at 6–7
+ * exercises from 1 hour, so longer sessions add margin (warm-up, rest), not exercises.
+ */
+const DURATION_DESCRIPTIONS: Record<number, string> = {
+  30: 'Rápido y efectivo, 3 ejercicios',
+  45: '5 ejercicios',
+  60: '6–7 ejercicios · recomendado',
+  75: '6–7 ejercicios con más margen para descansar',
+  90: '6–7 ejercicios sin prisa: calentamiento largo y descansos amplios',
+};
+
 export function DurationSection({ draft, update }: { draft: ProfileDraft; update: Update }) {
   return (
     <View style={styles.options}>
@@ -411,15 +395,7 @@ export function DurationSection({ draft, update }: { draft: ProfileDraft; update
           key={minutes}
           icon="time-outline"
           title={minutes < 60 ? `${minutes} min` : minutes === 60 ? '1 hora' : `1 h ${minutes - 60} min`}
-          description={
-            minutes <= 30
-              ? 'Rápido y efectivo, 3 ejercicios'
-              : minutes <= 45
-                ? '4–5 ejercicios'
-                : minutes <= 60
-                  ? '5–6 ejercicios · recomendado'
-                  : '6–7 ejercicios, más volumen'
-          }
+          description={DURATION_DESCRIPTIONS[minutes]}
           selected={draft.sessionMinutes === minutes}
           onPress={() => update('sessionMinutes', minutes)}
         />

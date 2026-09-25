@@ -147,7 +147,7 @@ export function OnboardingScreen() {
   const questionCount = steps.length - 2;
 
   const basicsValid = !errors.age && !errors.weightKg && !errors.heightCm;
-  const canContinue = current !== 'basics' || basicsValid;
+  const canContinue = current === 'basics' ? basicsValid : current === 'goal' ? draft.fitnessGoal !== null : true;
 
   const go = (delta: number) => {
     FeedbackService.selection();

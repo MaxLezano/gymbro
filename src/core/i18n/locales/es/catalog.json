@@ -95,7 +95,7 @@
   },
   "goals": {
     "fat_loss": { "title": "Perder grasa", "short": "Déficit −400 kcal", "description": "Definición conservando músculo" },
-    "maintenance": { "title": "Recomposición", "short": "Mantenimiento", "description": "Mismo peso, mejor composición" },
+    "maintenance": { "title": "Recomposición", "short": "Mantenimiento", "description": "Pierdes grasa y ganas músculo a la vez, con proteína alta" },
     "muscle_gain": { "title": "Ganar músculo", "short": "Superávit +250 kcal", "description": "Volumen limpio con poca grasa" },
     "aggressive_bulk": { "title": "Volumen intenso", "short": "Superávit +500 kcal", "description": "Máxima ganancia de masa y fuerza" }
   },
