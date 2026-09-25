@@ -3,13 +3,15 @@ import { EXERCISES, getExercise } from '../../../data/catalog';
 import { fitsHomeEquipment } from '../../utils/equipment';
 import { FOCUS_LABELS, generateRoutine, suggestFocus } from '../../utils/programGenerator';
 import { estimateOneRepMax, personalRecords } from '../../utils/workout';
-import { DIETARY_CONDITION_LABELS, GOAL_LABELS, labelTarget } from '../../i18n/labels';
+import { GOAL_LABELS, labelTarget } from '../../i18n/labels';
 import type { CoachContext } from './context';
 import type { ParsedQuery } from './intents';
 import { buildMealPlan } from './mealPlan';
+import { adaptedToNote, lowCalorieNote, medicalDisclaimerFor } from './nutritionNotes';
 import type { CoachReply } from './types';
 
 export { buildMealPlan } from './mealPlan';
+export { LOW_CALORIE_TARGET, MEDICAL_DISCLAIMER } from './nutritionNotes';
 
 function prescriptionText(profile: UserProfile): string {
   switch (profile.fitnessGoal) {
@@ -23,12 +25,6 @@ function prescriptionText(profile: UserProfile): string {
       return 'Para ganar músculo, deja **1–2 repeticiones en reserva** en cada serie y sube peso cuando completes el tope del rango en todas las series.';
   }
 }
-
-/** Shown whenever a menu is adapted to a health condition. */
-/** Below this daily target the minimum sensible servings can overshoot, so the coach warns. */
-export const LOW_CALORIE_TARGET = 1500;
-
-export const MEDICAL_DISCLAIMER = 'Son recomendaciones generales y no reemplazan la indicación de tu médico o nutricionista.';
 
 const DEFAULT_SUGGESTIONS = ['Armame una rutina para hoy', '¿Cuánta proteína necesito?', '¿Cómo progreso más rápido?'];
 
@@ -97,21 +93,16 @@ export function offlineReply(query: ParsedQuery, context: CoachContext): Omit<Co
 
     case 'nutrition': {
       const conditions = profile.dietaryConditions ?? [];
-      const lowCalorieWarning =
-        plan.targetCalories < LOW_CALORIE_TARGET
-          ? `\n\n**Atención:** tu meta de ${plan.targetCalories} kcal es muy baja. El menú usa porciones mínimas razonables y algunos días puede quedar un poco por encima. ` +
-            'No recortes más las porciones por tu cuenta: un déficit tan grande conviene hacerlo con un nutricionista.'
-          : '';
-      const adapted = conditions.length
-        ? ` Lo adapté a: ${conditions.map((condition) => DIETARY_CONDITION_LABELS[condition].title.toLowerCase()).join(', ')}.`
-        : '';
+      const lowCalorie = lowCalorieNote(plan.targetCalories);
+      const adapted = adaptedToNote(conditions);
+      const disclaimer = medicalDisclaimerFor(conditions);
       return {
         text:
           `Para **${GOAL_LABELS[profile.fitnessGoal].title.toLowerCase()}** tu meta es **${plan.targetCalories} kcal** al día. ` +
           `Reparte la proteína en 3–5 tomas de unos ${Math.round(plan.proteinGrams / 4)} g y concentra los carbohidratos alrededor del entrenamiento.\n\n` +
-          `Este es tu menú de hoy, cerca de tus macros (cantidades aproximadas; cambia cada día).${adapted}` +
-          lowCalorieWarning +
-          (conditions.length ? `\n\n${MEDICAL_DISCLAIMER}` : ''),
+          `Este es tu menú de hoy, cerca de tus macros (cantidades aproximadas; cambia cada día).${adapted ? ` ${adapted}` : ''}` +
+          (lowCalorie ? `\n\n**Atención:** ${lowCalorie}` : '') +
+          (disclaimer ? `\n\n${disclaimer}` : ''),
         blocks: [{ type: 'macros' }, { type: 'meals', meals: buildMealPlan(plan, { conditions }) }],
         suggestions: ['¿Qué como antes de entrenar?', 'Dame opciones vegetarianas', '¿Me conviene tomar creatina?'],
       };

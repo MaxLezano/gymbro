@@ -10,6 +10,7 @@ import { AppText, Badge, Button, Card, ScreenHeader, SectionHeader, StatTile } f
 import { TabScreen } from '../../components/layout/TabScreen';
 import { HeaderActions } from '../../components/layout/HeaderActions';
 import { MacroSummary } from './MacroSummary';
+import { TodayMenuCard } from './TodayMenuCard';
 
 /** Horizontal scale with a marker, used for FFMI and the healthy weight range. */
 function ScaleBar({
@@ -55,6 +56,7 @@ function ScaleBar({
 export function NutritionScreen() {
   const profile = useAppStore(selectProfile);
   const plan = useMemo(() => calculateNutritionPlan(profile), [profile]);
+  const conditions = useMemo(() => profile.dietaryConditions ?? [], [profile.dietaryConditions]);
   const goal = GOAL_LABELS[profile.fitnessGoal];
   const meals = 4;
   const weightDelta = Math.round((plan.idealWeightKg - profile.weightKg) * 10) / 10;
@@ -99,6 +101,8 @@ export function NutritionScreen() {
             <View style={styles.divider} />
             <MacroSummary plan={plan} />
           </Card>
+
+          <TodayMenuCard plan={plan} conditions={conditions} />
 
           <View style={styles.row}>
             <StatTile label="Agua" value={plan.waterLitersDaily} unit="L" icon="water-outline" iconColor={theme.colors.info} />
