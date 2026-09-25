@@ -88,6 +88,13 @@ export function RoutineBuilderScreen({ editId, fromId }: { editId?: string; from
   const removeItem = (index: number) =>
     setDraft((prev) => ({ ...prev, exercises: prev.exercises.filter((_, i) => i !== index) }));
 
+  // Keeps the sets, reps and rest already tuned: only the movement changes (missing machine, disliked lift).
+  const replaceItem = (index: number) => {
+    pickerBridge.expect(([id]) => id && updateItem(index, { exerciseId: id, exerciseName: getExercise(id)?.displayName }));
+    const bodyPart = getExercise(draft.exercises[index].exerciseId)?.bodyPart ?? 'all';
+    router.push({ pathname: '/exercise-picker', params: { mode: 'builder', replace: String(index), bodyPart } });
+  };
+
   const openPicker = () => {
     pickerBridge.expect((ids) =>
       setDraft((prev) => ({
@@ -187,6 +194,7 @@ export function RoutineBuilderScreen({ editId, fromId }: { editId?: string; from
                     onPress={() => moveItem(index, 1)}
                     accessibilityLabel="Bajar"
                   />
+                  <IconButton icon="swap-horizontal" size={32} onPress={() => replaceItem(index)} accessibilityLabel="Reemplazar ejercicio" />
                   <IconButton icon="close" size={32} color={theme.colors.danger} onPress={() => removeItem(index)} accessibilityLabel="Quitar" />
                 </View>
 

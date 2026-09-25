@@ -21,11 +21,11 @@ export function ExercisePickerScreen({
   initialBodyPart,
 }: {
   mode: 'workout' | 'builder';
-  /** Replace this exercise of the active workout: single choice, same muscle group preselected. */
+  /** Replace this exercise (of the active workout, or of the routine being edited): single choice, same muscle group preselected. */
   replaceIndex?: number;
   initialBodyPart?: string;
 }) {
-  const replacing = mode === 'workout' && replaceIndex !== undefined;
+  const replacing = replaceIndex !== undefined;
   const profile = useAppStore(selectProfile);
   const [query, setQuery] = useState('');
   const [bodyPart, setBodyPart] = useState(initialBodyPart ?? 'all');
@@ -41,14 +41,15 @@ export function ExercisePickerScreen({
       if (replacing) {
         // One tap is the whole choice when swapping an exercise.
         FeedbackService.success();
-        appActions.replaceExerciseInWorkout(replaceIndex, exercise.id);
+        if (mode === 'workout') appActions.replaceExerciseInWorkout(replaceIndex, exercise.id);
+        else pickerBridge.resolve([exercise.id]);
         router.back();
         return;
       }
       FeedbackService.selection();
       setSelected((prev) => (prev.includes(exercise.id) ? prev.filter((id) => id !== exercise.id) : [...prev, exercise.id]));
     },
-    [replacing, replaceIndex]
+    [replacing, replaceIndex, mode]
   );
 
   const renderItem = useCallback(
