@@ -106,7 +106,7 @@ export function WorkoutScreen() {
 
   const askFinish = () => {
     if (done === 0) {
-      Alert.alert('Aún no completaste series', 'Marca las series con el check a medida que las haces.', [
+      Alert.alert('Aún no completaste series', 'Completa al menos una serie para guardar el entrenamiento: en modo Coach termina la serie y en modo Lista márcala con el check.', [
         { text: 'Seguir entrenando', style: 'cancel' },
         { text: 'Descartar entrenamiento', style: 'destructive', onPress: discard },
       ]);

@@ -349,6 +349,24 @@ test('calorie targets under 1500 kcal always warn', () => {
   assert(/Atención.*muy baja/.test(offlineReply({ intent: 'nutrition' }, { profile, plan: tiny, history: [] }).text), 'tiny plan not warned');
 });
 
+test('Spanish search terms find the classic lifts', () => {
+  const search = (query) => {
+    const terms = query.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/);
+    return EXERCISES.filter((exercise) => terms.every((term) => exercise.searchText.includes(term)));
+  };
+  const expect = { sentadilla: /squat/i, 'press de banca': /bench press/i, dominadas: /pull.?up|chin.?up/i, 'peso muerto': /deadlift/i, remo: /row/i };
+  for (const [query, pattern] of Object.entries(expect)) {
+    const found = search(query);
+    assert(found.length > 0 && found.some((exercise) => pattern.test(exercise.name)), `${query}: ${found.length}`);
+  }
+});
+test('first-time loads never go below an empty barbell', () => {
+  const { startingWeight } = src('core/utils/workout.ts');
+  assert(startingWeight('barbell') === 20 && startingWeight('olympic barbell') === 20, 'barbell');
+  assert(startingWeight('body weight') === 0 && startingWeight('band') === 0, 'no load');
+  assert(startingWeight('dumbbell') > 0 && startingWeight('cable') > 0, 'free weights');
+});
+
 console.log('\n7. Voice commands');
 const cmd = (text) => JSON.stringify(parseVoiceCommand(text));
 test('"terminé" with or without the wake word', () => {

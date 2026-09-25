@@ -46,6 +46,27 @@ export function findLastPerformance(
   return null;
 }
 
+/**
+ * First-time load with no history: an empty bar for barbells (never below the
+ * bar itself), light loads for free weights, nothing for bands, balls or cardio.
+ */
+const STARTING_WEIGHT_KG: Record<string, number> = {
+  barbell: 20,
+  'olympic barbell': 20,
+  'trap bar': 20,
+  'smith machine': 20,
+  'ez barbell': 10,
+  'leverage machine': 20,
+  'sled machine': 20,
+  cable: 10,
+  dumbbell: 8,
+  kettlebell: 8,
+  'medicine ball': 4,
+  weighted: 5,
+};
+
+export const startingWeight = (equipment?: string) => (equipment ? (STARTING_WEIGHT_KG[equipment] ?? 0) : 10);
+
 export function createExerciseLog(
   exerciseId: string,
   history: WorkoutSession[],
@@ -54,8 +75,7 @@ export function createExerciseLog(
   const exercise = getExercise(exerciseId);
   const last = findLastPerformance(exerciseId, history);
   const reps = last?.reps ?? parseTargetReps(options.targetReps);
-  const isBodyweight = exercise?.equipment === 'body weight';
-  const weight = last?.weightKg ?? (isBodyweight ? 0 : 10);
+  const weight = last?.weightKg ?? startingWeight(exercise?.equipment);
 
   return {
     exerciseId,

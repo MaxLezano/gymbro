@@ -56,7 +56,6 @@ function ValueTile({ label, value, unit, onMinus, onPlus }: { label: string; val
       <AppText variant="overline" color="textMuted">
         {label}
       </AppText>
-      {/* The number stays centered; the unit hangs to its right. */}
       <View style={styles.tileValue}>
         <AppText style={styles.tileNumber}>{value}</AppText>
         {unit ? (
@@ -559,7 +558,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   tileValue: {
-    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'baseline',
     paddingVertical: theme.spacing.sm,
   },
   tileNumber: {
@@ -570,9 +571,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   tileUnit: {
-    position: 'absolute',
-    left: '100%',
-    bottom: 16,
     marginLeft: 4,
     fontWeight: '600',
   },
