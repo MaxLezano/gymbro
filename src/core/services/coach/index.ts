@@ -1,6 +1,6 @@
 import { DIETARY_CONDITION_LABELS } from '../../i18n/labels';
 import { calculateNutritionPlan } from '../../utils/nutrition';
-import type { UserProfile, WorkoutSession } from '../../types';
+import type { HomeEquipment, UserProfile, WorkoutSession } from '../../types';
 import { describeAthlete, describeCandidates, describeExercise, describeHistory, selectCandidates, type CoachContext } from './context';
 import { isOffTopic, OFF_TOPIC_REPLY, parseQuery, unknownExerciseName, type ParsedQuery } from './intents';
 import { LOW_CALORIE_TARGET, MEDICAL_DISCLAIMER, offlineReply } from './offlineEngine';
@@ -94,6 +94,11 @@ export interface AskCoachOptions {
   offlineOnly?: boolean;
 }
 
+function withEquipment(profile: UserProfile, equipment: HomeEquipment[]): UserProfile {
+  const bench: HomeEquipment[] = profile.homeEquipment.includes('adjustable_bench') ? ['adjustable_bench'] : [];
+  return { ...profile, trainingLocation: 'home', homeEquipment: [...new Set([...equipment, ...bench])] };
+}
+
 /** Anti-abuse: plenty for a real conversation, too little to use the chat as a free AI. */
 const RATE_WINDOW_MS = 10 * 60_000;
 const RATE_MAX = 20;
@@ -106,9 +111,13 @@ function overRateLimit(now = Date.now()): boolean {
   return false;
 }
 
-export async function askCoach({ prompt, history, profile, workouts, signal, offlineOnly }: AskCoachOptions): Promise<CoachReply> {
-  const context: CoachContext = { profile, plan: calculateNutritionPlan(profile), history: workouts };
+export async function askCoach({ prompt, history, profile: savedProfile, workouts, signal, offlineOnly }: AskCoachOptions): Promise<CoachReply> {
   const query = parseQuery(prompt);
+  // "con mancuernas" beats the saved kit: both engines then only see exercises for that equipment
+  // (plus bodyweight, and the bench if the athlete owns one).
+  const profile = query.equipment ? withEquipment(savedProfile, query.equipment) : savedProfile;
+  if (query.equipment) query.location = 'home';
+  const context: CoachContext = { profile, plan: calculateNutritionPlan(profile), history: workouts };
   const location = query.location ?? (profile.trainingLocation === 'home' ? 'home' : 'gym');
 
   if (overRateLimit()) {

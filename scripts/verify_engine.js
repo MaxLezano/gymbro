@@ -225,6 +225,14 @@ test('intent parsing', () => {
   assert(parseQuery('¿Qué como antes de entrenar?').intent === 'nutrition', 'nutrition');
   assert(parseQuery('¿Cómo mejoro mi press de banca?').exerciseId === '0025', 'exercise alias');
 });
+test('equipment named in a routine request is parsed, exercise names are not', () => {
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  assert(same(parseQuery('Armame una rutina de espalda con mancuernas').equipment, ['dumbbells']), 'dumbbells');
+  assert(same(parseQuery('rutina de piernas sin equipo').equipment, ['body_weight']), 'bodyweight');
+  assert(same(parseQuery('rutina con barra de dominadas').equipment, ['pullup_bar']), 'pull-up bar is not a barbell');
+  assert(parseQuery('¿Cómo hago el remo con mancuerna?').equipment === undefined, 'exercise name kept as exercise');
+  assert(parseQuery('Armame una rutina de pecho').equipment === undefined, 'profile kit kept');
+});
 test('off-topic questions are refused, fitness ones are not', () => {
   const blocked = ['Que sabes de las islas malvinas?', 'quién ganó el mundial 2022', 'escribime un poema de amor', 'cuál es la capital de Francia', 'resolveme esta ecuación 2x+3=7'];
   const allowed = ['hola', 'gracias!', 'cómo bajo la panza', 'qué como antes de entrenar', 'me duele la rodilla al hacer sentadilla', 'cuántas veces por semana entreno', 'dormí mal, entreno igual?', 'qué puedes hacer', 'armame una rutina', 'cómo uso la app', 'Dame consejos de técnica y progresión para Archer Push Up', 'Por qué no me puedes responder lo que te pregunto'];
@@ -562,6 +570,16 @@ test('coach status only degrades after two basic replies in a row', () => {
 
 console.log('\n8. Accounts (per-device data spaces)');
 (async () => {
+  await testAsync('"con mancuernas" overrides the saved kit in the coach routine', async () => {
+    const { askCoach } = src('core/services/coach/index.ts');
+    const { migrateProfile } = src('storage/index.ts');
+    const profile = migrateProfile({ ...profileForPlan, trainingLocation: 'home', homeEquipment: ['resistance_bands', 'barbell_plates'] });
+    const reply = await askCoach({ prompt: 'Armame una rutina de espalda con mancuernas', history: [], profile, workouts: [], offlineOnly: true });
+    const routine = reply.blocks.find((block) => block.type === 'routine')?.routine;
+    assert(routine && routine.exercises.length >= 3, 'routine returned');
+    const kit = routine.exercises.map((item) => getExercise(item.exerciseId).equipment);
+    assert(kit.every((equipment) => equipment === 'dumbbell' || equipment === 'body weight'), `off-kit: ${kit}`);
+  });
   memory.clear();
 
   await testAsync('accounts are isolated from each other', async () => {

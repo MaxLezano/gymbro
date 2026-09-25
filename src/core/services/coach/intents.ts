@@ -1,4 +1,5 @@
 import { EXERCISES, normalizeText } from '../../../data/catalog';
+import type { HomeEquipment } from '../../types';
 import type { TrainingFocus } from '../../utils/programGenerator';
 
 export type CoachIntent = 'routine' | 'exercises' | 'technique' | 'nutrition' | 'body' | 'progress' | 'general';
@@ -10,6 +11,23 @@ export interface ParsedQuery {
   minutes?: number;
   /** Catalog id of an exercise explicitly mentioned (e.g. "press de banca"). */
   exerciseId?: string;
+  /** Equipment the athlete asked to use ("con mancuernas", "sin equipo"): overrides the profile's. */
+  equipment?: HomeEquipment[];
+}
+
+const EQUIPMENT_PATTERNS: [RegExp, HomeEquipment][] = [
+  [/mancuerna|dumbbell/, 'dumbbells'],
+  [/barras?(?! de dominad| fija)|barbell/, 'barbell_plates'],
+  [/kettlebell|pesa rusa/, 'kettlebell'],
+  [/bandas?|ligas?|elastic/, 'resistance_bands'],
+  [/barra (de dominadas|fija)|dominadas en casa/, 'pullup_bar'],
+  [/sin (equipo|material|nada|pesas)|peso corporal|calistenia/, 'body_weight'],
+];
+
+/** Equipment named in a routine request, or undefined to keep the profile's. */
+function parseEquipment(text: string): HomeEquipment[] | undefined {
+  const named = EQUIPMENT_PATTERNS.filter(([pattern]) => pattern.test(text)).map(([, item]) => item);
+  return named.length > 0 ? [...new Set(named)] : undefined;
 }
 
 const FOCUS_PATTERNS: [RegExp, TrainingFocus][] = [
@@ -155,5 +173,8 @@ export function parseQuery(raw: string): ParsedQuery {
     intent = 'technique';
   }
 
-  return { intent, focus, location, minutes, exerciseId };
+  // Only routine and exercise requests use it: in "remo con mancuerna" it names the exercise, not the kit.
+  const equipment = intent === 'routine' || intent === 'exercises' ? parseEquipment(text) : undefined;
+
+  return { intent, focus, location, minutes, exerciseId, equipment };
 }
