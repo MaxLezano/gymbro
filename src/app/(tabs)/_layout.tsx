@@ -13,7 +13,7 @@ export default function TabsLayout() {
   }
 
   return (
-    <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <TabBar {...props} />}>
+    <Tabs screenOptions={{ headerShown: false, lazy: false }} tabBar={(props) => <TabBar {...props} />}>
       <Tabs.Screen name="index" options={{ title: 'Inicio' }} />
       <Tabs.Screen name="train" options={{ title: 'Entrenar' }} />
       <Tabs.Screen name="exercises" options={{ title: 'Ejercicios' }} />

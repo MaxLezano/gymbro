@@ -28,8 +28,17 @@ const EQUIPMENT_RANK: Record<string, number> = {
   kettlebell: 2,
 };
 
-/** Browsing order: alphabetical by the translated name (the dataset is sorted by the English one). */
-const ALPHABETICAL = [...EXERCISES].sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'));
+/**
+ * Browsing order: alphabetical by the translated name (the dataset is sorted by the English one).
+ * Compares pre-normalized keys instead of localeCompare: on Hermes/Android every localeCompare
+ * call goes through the platform collator, and ~14k of them froze the first catalog open for 30+ s.
+ */
+const ALPHABETICAL = EXERCISES.map((exercise) => ({ exercise, key: normalizeText(exercise.displayName) }))
+  .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
+  .map(({ exercise }) => exercise);
+
+/** First screen of the catalog in browsing order: what the boot screen preloads. */
+export const firstCatalogPage = (count: number) => ALPHABETICAL.slice(0, count);
 
 const byRelevance = (a: CatalogExercise, b: CatalogExercise) =>
   (EQUIPMENT_RANK[a.equipment] ?? 3) - (EQUIPMENT_RANK[b.equipment] ?? 3) || a.name.length - b.name.length;
