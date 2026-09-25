@@ -135,12 +135,14 @@ export interface GenerateOptions {
   /** Force a location regardless of the profile preference. */
   location?: 'home' | 'gym';
   maxExercises?: number;
+  /** Session length to fill: spare time becomes extra sets (compound lifts first), never extra exercises. */
+  targetMinutes?: number;
   title?: string;
   /** Exercises to avoid (used to build A/B variations of the same day type). */
   exclude?: Set<string>;
 }
 
-export function generateRoutine({ focus, profile, location, maxExercises, title, exclude }: GenerateOptions): Routine {
+export function generateRoutine({ focus, profile, location, maxExercises, targetMinutes, title, exclude }: GenerateOptions): Routine {
   const trainsAtHome = (location ?? (profile.trainingLocation === 'home' ? 'home' : 'gym')) === 'home';
   const isAvailable = (exercise: CatalogExercise) =>
     !trainsAtHome || fitsHomeEquipment(exercise, profile.homeEquipment);
@@ -149,6 +151,7 @@ export function generateRoutine({ focus, profile, location, maxExercises, title,
   const limit = maxExercises ?? EXERCISE_LIMIT[level];
   const chosen = new Set<string>();
   const exercises: RoutineExercise[] = [];
+  const compound: boolean[] = [];
 
   // Priority muscles: their extra slots go right after the main compound lifts.
   // One priority on this day gets two extra slots; several share the space with one each.
@@ -181,6 +184,7 @@ export function generateRoutine({ focus, profile, location, maxExercises, title,
     if (!pick) continue;
 
     chosen.add(pick.id);
+    compound.push(!!slot.compound);
     const { reps, rest } = prescription(profile.fitnessGoal, level, !!slot.compound, focus);
     exercises.push({
       exerciseId: pick.id,
@@ -190,6 +194,8 @@ export function generateRoutine({ focus, profile, location, maxExercises, title,
       restSeconds: rest,
     });
   }
+
+  if (targetMinutes) addSetsToFill(exercises, compound, targetMinutes);
 
   const bodyweightOnlyHome = trainsAtHome && profile.homeEquipment.every((item) => item === 'body_weight');
   return {
@@ -213,6 +219,30 @@ export function generateRoutine({ focus, profile, location, maxExercises, title,
 export function estimateMinutes(exercises: RoutineExercise[]): number {
   const seconds = exercises.reduce((sum, item) => sum + item.targetSets * (45 + item.restSeconds) + 90, 0);
   return Math.max(10, Math.round((seconds / 60 + 5) / 5) * 5);
+}
+
+/** Most sets worth doing per exercise in one session: past this, a longer session is junk volume. */
+const MAX_SETS = { compound: 5, isolation: 4 };
+
+/**
+ * A longer session trains the same movements harder, not more movements: one extra set
+ * at a time, compound lifts first, while the session still fits the time.
+ */
+function addSetsToFill(exercises: RoutineExercise[], compound: boolean[], targetMinutes: number): void {
+  const order = exercises.map((_, index) => index).sort((a, b) => Number(compound[b]) - Number(compound[a]));
+  for (let added = true; added; ) {
+    added = false;
+    for (const index of order) {
+      const item = exercises[index];
+      if (item.targetSets >= (compound[index] ? MAX_SETS.compound : MAX_SETS.isolation)) continue;
+      item.targetSets += 1;
+      if (estimateMinutes(exercises) > targetMinutes) {
+        item.targetSets -= 1;
+        return;
+      }
+      added = true;
+    }
+  }
 }
 
 /** Suggest a focus for today based on what was trained recently. */
@@ -269,7 +299,8 @@ export function generateWeeklyProgram(
 ): WeeklyProgram {
   const days = Math.max(1, Math.min(6, profile.daysPerWeek ?? 3));
   const split = splitForDays(days, profile.experience);
-  const maxExercises = exercisesForMinutes(profile.sessionMinutes ?? 60);
+  const sessionMinutes = profile.sessionMinutes ?? 60;
+  const maxExercises = exercisesForMinutes(sessionMinutes);
   const programId = createId('program');
   const usedByFocus = new Map<TrainingFocus, Set<string>>();
   const daysLabel = `${days} ${days === 1 ? 'día' : 'días'}`;
@@ -277,7 +308,7 @@ export function generateWeeklyProgram(
   const routines = split.map((focus, index) => {
     // When a day type repeats in the week, rotate exercises (A/B variation).
     const used = usedByFocus.get(focus);
-    const routine = generateRoutine({ focus, profile, maxExercises, exclude: used });
+    const routine = generateRoutine({ focus, profile, maxExercises, targetMinutes: sessionMinutes, exclude: used });
     usedByFocus.set(focus, new Set([...(used ?? []), ...routine.exercises.map((item) => item.exerciseId)]));
     return {
       ...routine,

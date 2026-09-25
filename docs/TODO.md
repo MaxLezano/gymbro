@@ -13,7 +13,7 @@ Tick each item once it is done **and** checked on the emulator.
 ## 2. Details
 
 - [x] Coach header shows the provider that actually answered (Gemini or the fallback).
-- [ ] 75 and 90 min programs get more volume than 60 min.
+- [x] 75 and 90 min programs get more volume than 60 min (extra sets, compound lifts first; weekly sets 60/88/104/116 for 45/60/75/90 min).
 - [ ] More exercise images available offline (only 16 are preloaded).
 
 ## 3. Features for people who train

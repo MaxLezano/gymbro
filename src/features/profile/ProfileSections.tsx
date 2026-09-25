@@ -377,14 +377,14 @@ const DURATIONS = [30, 45, 60, 75, 90];
 
 /**
  * What the program generator actually builds for each length: it tops out at 6–7
- * exercises from 1 hour, so longer sessions add margin (warm-up, rest), not exercises.
+ * exercises from 1 hour, so longer sessions add sets to the same movements, not exercises.
  */
 const DURATION_DESCRIPTIONS: Record<number, string> = {
   30: 'Rápido y efectivo, 3 ejercicios',
   45: '5 ejercicios',
   60: '6–7 ejercicios · recomendado',
-  75: '6–7 ejercicios con más margen para descansar',
-  90: '6–7 ejercicios sin prisa: calentamiento largo y descansos amplios',
+  75: '6–7 ejercicios con más series en los principales',
+  90: '6–7 ejercicios con volumen alto: más series en cada uno',
 };
 
 export function DurationSection({ draft, update }: { draft: ProfileDraft; update: Update }) {

@@ -663,6 +663,17 @@ console.log('\n8. Accounts (per-device data spaces)');
       globalThis.fetch = realFetch;
     }
   });
+  test('longer sessions get more sets, and every day fits the chosen time', () => {
+    const { generateWeeklyProgram, estimateMinutes } = src('core/utils/programGenerator.ts');
+    const base = { trainingLocation: 'gym', homeEquipment: [], fitnessGoal: 'muscle_gain', experience: 'intermediate', daysPerWeek: 4 };
+    const totals = [45, 60, 75, 90].map((sessionMinutes) => {
+      const { routines } = generateWeeklyProgram({ ...base, sessionMinutes });
+      routines.forEach((routine) => assert(estimateMinutes(routine.exercises) <= sessionMinutes + 5, `${sessionMinutes} min day lasts ${estimateMinutes(routine.exercises)}`));
+      routines.forEach((routine) => routine.exercises.forEach((item) => assert(item.targetSets <= 5, `${item.targetSets} sets`)));
+      return routines.reduce((sum, routine) => sum + routine.exercises.reduce((s, item) => s + item.targetSets, 0), 0);
+    });
+    assert(totals.every((total, i) => i === 0 || total > totals[i - 1]), `weekly sets by duration: ${totals}`);
+  });
   test('every focus named in a request is kept', () => {
     const focuses = parseQuery('Armame una rutina de espalda y biceps').focuses;
     assert(JSON.stringify(focuses) === JSON.stringify(['back', 'arms']), `focuses: ${focuses}`);
