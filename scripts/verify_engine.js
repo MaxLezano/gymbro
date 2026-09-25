@@ -580,6 +580,35 @@ console.log('\n8. Accounts (per-device data spaces)');
     const kit = routine.exercises.map((item) => getExercise(item.exerciseId).equipment);
     assert(kit.every((equipment) => equipment === 'dumbbell' || equipment === 'body weight'), `off-kit: ${kit}`);
   });
+  await testAsync('a short AI routine is completed to fill the session, across every focus asked', async () => {
+    const { askCoach } = src('core/services/coach/index.ts');
+    const { migrateProfile } = src('storage/index.ts');
+    const profile = migrateProfile({ ...profileForPlan, sessionMinutes: 60 });
+    const rows = EXERCISES.filter((exercise) => exercise.equipment === 'dumbbell' && exercise.target === 'upper back').slice(0, 2);
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        content: JSON.stringify({ text: 'Rutina corta', blocks: [{ type: 'routine', title: 'Espalda', exercises: rows.map((row) => ({ id: row.id, sets: 3, reps: '10', rest: 90 })) }] }),
+      }),
+    });
+    try {
+      const reply = await askCoach({ prompt: 'Armame una rutina de espalda y biceps con mancuernas', history: [], profile, workouts: [] });
+      const routine = reply.blocks.find((block) => block.type === 'routine')?.routine;
+      assert(routine && routine.exercises.length >= 6, `only ${routine?.exercises.length} exercises`);
+      const targets = routine.exercises.map((item) => getExercise(item.exerciseId).target);
+      assert(targets.includes('biceps'), `no biceps: ${targets}`);
+      assert(new Set(routine.exercises.map((item) => item.exerciseId)).size === routine.exercises.length, 'duplicates');
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+  test('every focus named in a request is kept', () => {
+    const focuses = parseQuery('Armame una rutina de espalda y biceps').focuses;
+    assert(JSON.stringify(focuses) === JSON.stringify(['back', 'arms']), `focuses: ${focuses}`);
+    assert(parseQuery('Armame una rutina de pecho').focuses === undefined, 'single focus');
+  });
   memory.clear();
 
   await testAsync('accounts are isolated from each other', async () => {

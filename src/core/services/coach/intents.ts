@@ -7,6 +7,8 @@ export type CoachIntent = 'routine' | 'exercises' | 'technique' | 'nutrition' | 
 export interface ParsedQuery {
   intent: CoachIntent;
   focus?: TrainingFocus;
+  /** Every focus named, in order ("espalda y bíceps" -> back, arms). focus is the first one. */
+  focuses?: TrainingFocus[];
   location?: 'home' | 'gym';
   minutes?: number;
   /** Catalog id of an exercise explicitly mentioned (e.g. "press de banca"). */
@@ -141,7 +143,8 @@ function exerciseByCatalogName(text: string): string | undefined {
 export function parseQuery(raw: string): ParsedQuery {
   const text = normalizeText(raw);
 
-  const focus = FOCUS_PATTERNS.find(([pattern]) => pattern.test(text))?.[1];
+  const focuses = [...new Set(FOCUS_PATTERNS.filter(([pattern]) => pattern.test(text)).map(([, item]) => item))];
+  const focus = focuses[0];
   // Exact catalog names first (e.g. from the exercise screen's "Preguntar"), then Spanish gym slang.
   const exerciseId = exerciseByCatalogName(text) ?? EXERCISE_ALIASES.find(([pattern]) => pattern.test(text))?.[1];
   const location = /en casa|sin gimnasio|sin gym|home/.test(text) ? 'home' : /gimnasio|\bgym\b/.test(text) ? 'gym' : undefined;
@@ -176,5 +179,5 @@ export function parseQuery(raw: string): ParsedQuery {
   // Only routine and exercise requests use it: in "remo con mancuerna" it names the exercise, not the kit.
   const equipment = intent === 'routine' || intent === 'exercises' ? parseEquipment(text) : undefined;
 
-  return { intent, focus, location, minutes, exerciseId, equipment };
+  return { intent, focus, focuses: focuses.length > 1 ? focuses : undefined, location, minutes, exerciseId, equipment };
 }

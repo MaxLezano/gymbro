@@ -251,7 +251,7 @@ function splitForDays(days: number, level: ExperienceLevel): TrainingFocus[] {
 }
 
 /** Working exercises that fit a session (≈8 min each incl. rest, plus a 5 min warm-up). */
-function exercisesForMinutes(minutes: number): number {
+export function exercisesForMinutes(minutes: number): number {
   return Math.max(3, Math.min(7, Math.round((minutes - 5) / 8)));
 }
 

@@ -67,7 +67,7 @@ export function selectCandidates(query: ParsedQuery, context: CoachContext, limi
   const asked = query.exerciseId ? getExercise(query.exerciseId) : undefined;
   if (asked) picked.set(asked.id, asked);
 
-  const focuses: TrainingFocus[] = query.focus ? [query.focus] : ['full_body', 'push', 'pull', 'legs', 'core'];
+  const focuses: TrainingFocus[] = query.focuses ?? (query.focus ? [query.focus] : ['full_body', 'push', 'pull', 'legs', 'core']);
   for (const focus of focuses) {
     const routine = generateRoutine({ focus, profile, location: atHome ? 'home' : 'gym', maxExercises: 7 });
     routine.exercises.forEach((item) => add(getExercise(item.exerciseId)));
