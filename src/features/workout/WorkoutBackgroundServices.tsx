@@ -27,11 +27,13 @@ export function WorkoutBackgroundServices() {
     };
   }, [hasActiveWorkout]);
 
-  // Tapping "Descanso terminado" takes the athlete straight back to the workout.
+  // Tapping a notification opens its screen: "Descanso terminado" goes back to the running
+  // workout (if it is still running), a weigh-in reminder to Progress.
   const lastResponse = Notifications.useLastNotificationResponse();
   useEffect(() => {
     const url = lastResponse?.notification.request.content.data?.url;
-    if (typeof url === 'string' && appActions.getActiveWorkout()) router.push(url as '/workout');
+    if (url === '/workout' && appActions.getActiveWorkout()) router.push('/workout');
+    else if (url === '/progress') router.navigate('/progress');
   }, [lastResponse]);
 
   const endsAt = restTimer?.endsAt;

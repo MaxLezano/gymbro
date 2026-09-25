@@ -11,6 +11,8 @@ import {
   createSessionFromRoutine,
 } from '../core/utils/workout';
 import { toggleFavorite } from '../core/utils/exerciseLists';
+import { recordWeight } from '../core/utils/weightLog';
+import { localDateKey } from '../core/services/coach/mealPlan';
 
 export interface AppState {
   hydrated: boolean;
@@ -263,7 +265,12 @@ export const appActions = {
     return true;
   },
 
-  saveProfile(profile: UserProfile) {
+  saveProfile(edited: UserProfile) {
+    // A new weight typed in the profile is a weigh-in too: it joins the history chart.
+    const profile =
+      edited.weightKg !== state.profile.weightKg && edited.hasCompletedOnboarding
+        ? { ...edited, weightLog: recordWeight(edited.weightLog, localDateKey(), edited.weightKg) }
+        : edited;
     setState((prev) => {
       // Keep the login picker in sync with the profile's name and photo.
       const account = prev.account ? { ...prev.account, name: profile.name || prev.account.name, photoUrl: profile.photoUrl, email: profile.email ?? prev.account.email } : null;

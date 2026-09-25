@@ -24,6 +24,7 @@ import { AppText, Card, EmptyState, ProgressBar, ScreenHeader, SectionHeader, St
 import { TabScreen } from '../../components/layout/TabScreen';
 import { HeaderActions } from '../../components/layout/HeaderActions';
 import { BarChart, Sparkline } from './Charts';
+import { BodyWeightCard } from './BodyWeightCard';
 
 /** Weekly hard-set landmarks per muscle group (Schoenfeld 2017; Israetel MEV-MRV). */
 const WEEKLY_SET_TARGET = { min: 10, max: 20 };
@@ -111,6 +112,11 @@ export function ProgressScreen() {
     <TabScreen>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader title="Progreso" subtitle="Tu sobrecarga progresiva, semana a semana" right={<HeaderActions />} />
+
+        {/* Body weight does not depend on workouts: it shows even before the first session. */}
+        <View style={[styles.body, styles.weight]}>
+          <BodyWeightCard />
+        </View>
 
         {history.length === 0 ? (
           <EmptyState
@@ -228,6 +234,9 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: theme.spacing.lg,
     gap: theme.spacing.md,
+  },
+  weight: {
+    marginBottom: theme.spacing.md,
   },
   statsRow: {
     flexDirection: 'row',

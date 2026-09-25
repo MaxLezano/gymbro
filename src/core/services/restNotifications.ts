@@ -55,9 +55,24 @@ const enqueue = (task: () => Promise<void>) => {
   return queue;
 };
 
-/** Rest alarms are the only notifications the app schedules, so clearing all of them is safe. */
+/** Fixed id: scheduling again replaces the pending rest alarm instead of stacking another one. */
+const REST_ID = 'rest-timer';
+
+/** Rest alarms only: reminders (weigh-in, training days) live next to them and must survive. */
+const isRest = (request: Notifications.NotificationRequest) =>
+  // Older builds scheduled rest alarms with random ids; their payload still points at the workout.
+  request.identifier === REST_ID || request.content.data?.url === '/workout';
+
 async function clearAll() {
-  await Notifications.cancelAllScheduledNotificationsAsync().catch(() => undefined);
+  const pending = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
+  await Promise.all(pending.filter(isRest).map((request) => Notifications.cancelScheduledNotificationAsync(request.identifier).catch(() => undefined)));
+}
+
+async function dismissShown() {
+  const shown = await Notifications.getPresentedNotificationsAsync().catch(() => []);
+  await Promise.all(
+    shown.filter((notification) => isRest(notification.request)).map((notification) => Notifications.dismissNotificationAsync(notification.request.identifier).catch(() => undefined))
+  );
 }
 
 export const RestNotifications = {
@@ -71,6 +86,7 @@ export const RestNotifications = {
         const seconds = Math.round((endsAt - Date.now()) / 1000);
         if (seconds < 2) return;
         await Notifications.scheduleNotificationAsync({
+          identifier: REST_ID,
           content: {
             title: 'Descanso terminado',
             body: nextLabel ? `A por la siguiente serie: ${nextLabel}` : 'A por la siguiente serie.',
@@ -90,7 +106,7 @@ export const RestNotifications = {
   cancel(options?: { dismissShown?: boolean }) {
     return enqueue(async () => {
       await clearAll();
-      if (options?.dismissShown) await Notifications.dismissAllNotificationsAsync().catch(() => undefined);
+      if (options?.dismissShown) await dismissShown();
     });
   },
 };

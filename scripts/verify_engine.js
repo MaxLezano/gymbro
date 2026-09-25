@@ -687,6 +687,18 @@ console.log('\n8. Accounts (per-device data spaces)');
     const totals = eatenTotals([{ kcal: 700, proteinGrams: 50 }, { kcal: 1100, proteinGrams: 70 }], toggleMeal(log, 1));
     assert(totals.kcal === 1800 && totals.protein === 120, JSON.stringify(totals));
   });
+  test('weight log: one entry per day, change over time, weekly weigh-in', () => {
+    const { recordWeight, weightChange, weighInDue } = src('core/utils/weightLog.ts');
+    let log = recordWeight(undefined, '2026-03-01', 92.04);
+    log = recordWeight(log, '2026-03-15', 91.2);
+    log = recordWeight(log, '2026-03-08', 91.8);
+    log = recordWeight(log, '2026-03-15', 91.0);
+    assert(log.map((entry) => entry.date).join() === '2026-03-01,2026-03-08,2026-03-15' && log[0].kg === 92, JSON.stringify(log));
+    const change = weightChange(log, 7);
+    assert(change.kg === -0.8 && change.days === 7, JSON.stringify(change));
+    assert(weightChange(log, 30).kg === -1 && weightChange(log.slice(0, 1), 7) === null, 'change');
+    assert(weighInDue(log, '2026-03-22') && !weighInDue(log, '2026-03-21') && weighInDue(undefined, '2026-03-21'), 'due');
+  });
   test('every focus named in a request is kept', () => {
     const focuses = parseQuery('Armame una rutina de espalda y biceps').focuses;
     assert(JSON.stringify(focuses) === JSON.stringify(['back', 'arms']), `focuses: ${focuses}`);

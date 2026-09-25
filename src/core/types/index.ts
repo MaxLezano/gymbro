@@ -90,6 +90,10 @@ export interface UserProfile {
   menuSwaps?: { date: string; meals: Record<string, number> };
   /** Today's eating log: meals of the menu marked as eaten and water drunk. Starts fresh each day. */
   todayLog?: { date: string; eatenMeals: number[]; waterMl: number };
+  /** Body weight history, one entry per day, oldest first. weightKg is always the latest. */
+  weightLog?: { date: string; kg: number }[];
+  /** Weekly local notification reminding to weigh in. */
+  weighInReminder?: boolean;
   // Optional Google account link (display only; data stays on device)
   email?: string;
   photoUrl?: string;
