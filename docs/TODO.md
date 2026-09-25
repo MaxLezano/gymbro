@@ -5,7 +5,7 @@ Tick each item once it is done **and** checked on the emulator.
 ## 1. Before publishing on Play Store
 
 - [x] **Coach Worker locked to the app**: requests need the app key; per-IP limits stay. *(Later, when publishing: Play Integrity.)*
-- [ ] **Lighter APK without losing features**: one universal APK (phones + emulator) until the Play Store release, then AAB.
+- [x] **Lighter APK without losing features**: one universal APK (phones + emulator) until the Play Store release, then AAB. 128 MB -> 48 MB (R8, compressed native libs, no 32-bit x86, recompressed photos).
 - [ ] **Error reporting (Sentry)**: crashes and JS errors reach a dashboard.
 - [ ] **Microphone declared**: privacy policy + answers for Play Console "Data safety".
 - [ ] **Own exercise media** (replaces the licensed Gym Visual images). *Parked: a dedicated tool comes later.*
