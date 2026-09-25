@@ -7,7 +7,9 @@ import { selectHydrated, useAppStore } from '../state/appStore';
 import { WorkoutBackgroundServices } from '../features/workout/WorkoutBackgroundServices';
 import { BootScreen } from '../components/layout/BootScreen';
 import { runBoot } from '../features/boot/preload';
+import { initErrorReporting, withErrorReporting } from '../core/services/errorReporting';
 
+initErrorReporting();
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 const navigationTheme = {
@@ -23,7 +25,7 @@ const navigationTheme = {
   },
 };
 
-export default function RootLayout() {
+function RootLayout() {
   const hydrated = useAppStore(selectHydrated);
   const [bootProgress, setBootProgress] = useState(0.1);
   const [booting, setBooting] = useState(true);
@@ -66,3 +68,5 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
+
+export default withErrorReporting(RootLayout);
