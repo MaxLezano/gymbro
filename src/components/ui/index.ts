@@ -8,3 +8,4 @@ export { ScreenHeader } from './ScreenHeader';
 export { ModalHeader } from './ModalHeader';
 export { SectionHeader, StatTile, ProgressBar, Badge, EmptyState, ListRow, Divider } from './Blocks';
 export { CoverImage } from './CoverImage';
+export { ActionSheet, type SheetAction } from './ActionSheet';

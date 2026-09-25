@@ -14,19 +14,39 @@ import { pickerBridge } from './pickerBridge';
 
 const ITEM_HEIGHT = EXERCISE_ROW_HEIGHT + StyleSheet.hairlineWidth;
 
-export function ExercisePickerScreen({ mode }: { mode: 'workout' | 'builder' }) {
+export function ExercisePickerScreen({
+  mode,
+  replaceIndex,
+  initialBodyPart,
+}: {
+  mode: 'workout' | 'builder';
+  /** Replace this exercise of the active workout: single choice, same muscle group preselected. */
+  replaceIndex?: number;
+  initialBodyPart?: string;
+}) {
+  const replacing = mode === 'workout' && replaceIndex !== undefined;
   const profile = useAppStore(selectProfile);
   const [query, setQuery] = useState('');
-  const [bodyPart, setBodyPart] = useState('all');
+  const [bodyPart, setBodyPart] = useState(initialBodyPart ?? 'all');
   const [onlyMine, setOnlyMine] = useState(profile.trainingLocation === 'home');
   const [selected, setSelected] = useState<string[]>([]);
 
   const results = useExerciseSearch({ query, bodyPart, onlyMyEquipment: onlyMine, homeEquipment: profile.homeEquipment });
 
-  const toggle = useCallback((exercise: CatalogExercise) => {
-    FeedbackService.selection();
-    setSelected((prev) => (prev.includes(exercise.id) ? prev.filter((id) => id !== exercise.id) : [...prev, exercise.id]));
-  }, []);
+  const toggle = useCallback(
+    (exercise: CatalogExercise) => {
+      if (replacing) {
+        // One tap is the whole choice when swapping an exercise.
+        FeedbackService.success();
+        appActions.replaceExerciseInWorkout(replaceIndex, exercise.id);
+        router.back();
+        return;
+      }
+      FeedbackService.selection();
+      setSelected((prev) => (prev.includes(exercise.id) ? prev.filter((id) => id !== exercise.id) : [...prev, exercise.id]));
+    },
+    [replacing, replaceIndex]
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: CatalogExercise }) => (
@@ -49,7 +69,7 @@ export function ExercisePickerScreen({ mode }: { mode: 'workout' | 'builder' }) 
 
   return (
     <StackScreen>
-      <ModalHeader title="Añadir ejercicios" onClose={close} />
+      <ModalHeader title={replacing ? 'Reemplazar ejercicio' : 'Añadir ejercicios'} onClose={close} />
       <View style={styles.searchWrap}>
         <SearchField value={query} onChangeText={setQuery} placeholder="Buscar ejercicio" />
       </View>
@@ -73,18 +93,26 @@ export function ExercisePickerScreen({ mode }: { mode: 'workout' | 'builder' }) 
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={<EmptyState icon="search-outline" title="Sin resultados" message="Prueba con otro término o filtro." />}
       />
-      <View style={styles.footer}>
-        <AppText variant="subhead" color="textSecondary" style={styles.count}>
-          {selected.length === 0 ? 'Toca para seleccionar' : `${selected.length} seleccionado${selected.length > 1 ? 's' : ''}`}
-        </AppText>
-        <Button
-          label={selected.length > 0 ? `Añadir (${selected.length})` : 'Añadir'}
-          icon="add"
-          size="lg"
-          disabled={selected.length === 0}
-          onPress={confirm}
-        />
-      </View>
+      {replacing ? (
+        <View style={styles.footer}>
+          <AppText variant="subhead" color="textSecondary" style={styles.count}>
+            Toca el ejercicio que harás en su lugar. Se mantienen las series y el descanso.
+          </AppText>
+        </View>
+      ) : (
+        <View style={styles.footer}>
+          <AppText variant="subhead" color="textSecondary" style={styles.count}>
+            {selected.length === 0 ? 'Toca para seleccionar' : `${selected.length} seleccionado${selected.length > 1 ? 's' : ''}`}
+          </AppText>
+          <Button
+            label={selected.length > 0 ? `Añadir (${selected.length})` : 'Añadir'}
+            icon="add"
+            size="lg"
+            disabled={selected.length === 0}
+            onPress={confirm}
+          />
+        </View>
+      )}
     </StackScreen>
   );
 }

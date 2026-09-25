@@ -9,7 +9,7 @@ import { getExercise } from '../../data/catalog';
 import type { SetLog, WorkoutExerciseLog } from '../../core/types';
 import { appActions } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
-import { AppText, Button, Chip, IconButton } from '../../components/ui';
+import { ActionSheet, AppText, Button, Chip, IconButton, type SheetAction } from '../../components/ui';
 import { ExerciseThumb } from '../exercises/ExerciseThumb';
 import { NumberInput } from './NumberInput';
 
@@ -124,19 +124,28 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
   const [editingRest, setEditingRest] = useState(false);
   const rest = log.restSeconds ?? 90;
 
-  const openMenu = () => {
-    const actions = [
-      ...(index > 0 ? [{ text: 'Mover arriba', onPress: () => appActions.moveExercise(index, -1) }] : []),
-      ...(index < total - 1 ? [{ text: 'Mover abajo', onPress: () => appActions.moveExercise(index, 1) }] : []),
-      {
-        text: 'Quitar ejercicio',
-        style: 'destructive' as const,
-        onPress: () => appActions.removeExerciseFromWorkout(index),
-      },
-      { text: 'Cancelar', style: 'cancel' as const },
-    ];
-    Alert.alert(log.exerciseName, undefined, actions);
-  };
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuActions: SheetAction[] = [
+    {
+      label: 'Reemplazar ejercicio',
+      icon: 'swap-horizontal',
+      onPress: () =>
+        router.push({ pathname: '/exercise-picker', params: { replace: String(index), bodyPart: exercise?.bodyPart ?? 'all' } }),
+    },
+    ...(index > 0 ? [{ label: 'Mover arriba', icon: 'arrow-up' as const, onPress: () => appActions.moveExercise(index, -1) }] : []),
+    ...(index < total - 1 ? [{ label: 'Mover abajo', icon: 'arrow-down' as const, onPress: () => appActions.moveExercise(index, 1) }] : []),
+    {
+      label: 'Quitar ejercicio',
+      icon: 'trash-outline',
+      destructive: true,
+      onPress: () =>
+        Alert.alert('¿Quitar este ejercicio?', log.exerciseName, [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Quitar', style: 'destructive', onPress: () => appActions.removeExerciseFromWorkout(index) },
+        ]),
+    },
+  ];
+  const openMenu = () => setMenuOpen(true);
 
   return (
     <View style={[styles.card, allDone && styles.cardDone]}>
@@ -234,6 +243,7 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
       ))}
 
       <Button label="Añadir serie" icon="add" variant="ghost" size="sm" onPress={() => appActions.addSet(index)} style={styles.addSet} />
+      <ActionSheet visible={menuOpen} title={log.exerciseName} actions={menuActions} onClose={() => setMenuOpen(false)} />
     </View>
   );
 });

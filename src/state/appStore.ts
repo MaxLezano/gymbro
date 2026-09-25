@@ -323,6 +323,21 @@ export const appActions = {
     }));
   },
 
+  /** Swap an exercise (machine taken, no equipment) keeping its sets, target reps and rest. */
+  replaceExerciseInWorkout(index: number, exerciseId: string) {
+    updateActive((session) => {
+      const old = session.exercises[index];
+      if (!old) return session;
+      const next = createExerciseLog(exerciseId, state.history, {
+        sets: old.sets.length,
+        targetReps: old.targetReps,
+        restSeconds: old.restSeconds,
+      });
+      const exercises = session.exercises.map((log, i) => (i === index ? next : log));
+      return { ...session, exercises, totalVolumeKg: computeVolume(exercises) };
+    });
+  },
+
   removeExerciseFromWorkout(index: number) {
     updateActive((session) => {
       const exercises = session.exercises.filter((_, i) => i !== index);

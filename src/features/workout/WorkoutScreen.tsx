@@ -118,10 +118,18 @@ export function WorkoutScreen() {
       pending > 0 ? `Te quedan ${pluralize(pending, 'serie')} sin marcar. Solo se guardarán las completadas.` : 'Se guardará en tu historial.',
       [
         { text: 'Seguir', style: 'cancel' },
+        // Android alerts show at most three buttons: this one stays within the limit.
+        { text: 'Descartar', style: 'destructive', onPress: confirmDiscard },
         { text: 'Terminar', onPress: finish },
       ]
     );
   };
+
+  const confirmDiscard = () =>
+    Alert.alert('¿Descartar el entrenamiento?', 'No se guardará nada de esta sesión, tampoco las series completadas.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Descartar', style: 'destructive', onPress: discard },
+    ]);
 
   function discard() {
     appActions.discardWorkout();
