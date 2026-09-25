@@ -18,6 +18,7 @@ import { ExerciseThumb } from '../exercises/ExerciseThumb';
 import { useVoiceCommands, type ListeningState } from './useVoiceCommands';
 import { CoachSettingsSheet } from './CoachSettingsSheet';
 import { warmupExerciseIndex, warmupFor } from '../../core/utils/warmup';
+import { formatPlates, platesFor, usesPlates } from '../../core/utils/plates';
 
 interface Position {
   exerciseIndex: number;
@@ -373,6 +374,7 @@ export function CoachMode({ session, onFinish }: { session: WorkoutSession; onFi
   // Before the first working set of the session's first heavy lift: the warm-up ramp (never logged).
   const warmup =
     doneInExercise === 0 && position.setIndex === 0 && !isWorking && warmupExerciseIndex(session.exercises) === position.exerciseIndex ? warmupFor(log) : [];
+  const plates = usesPlates(exercise?.equipment) ? platesFor(set.weightKg) : null;
   const hint = LISTENING_HINT[voice.state];
   const update = (patch: { weightKg?: number; reps?: number }) => appActions.updateSet(position.exerciseIndex, position.setIndex, patch);
 
@@ -433,6 +435,15 @@ export function CoachMode({ session, onFinish }: { session: WorkoutSession; onFi
               )}
               <ValueTile label="Repeticiones" value={`${set.reps}`} onMinus={() => update({ reps: Math.max(1, set.reps - 1) })} onPlus={() => update({ reps: set.reps + 1 })} />
             </View>
+            {plates && (
+              <View style={styles.plates} accessible accessibilityLabel={`Discos por lado: ${formatPlates(plates.perSide)}`}>
+                <Ionicons name="disc-outline" size={16} color={theme.colors.textMuted} />
+                <AppText variant="subhead" color="textSecondary" style={styles.flexShrink}>
+                  Por lado: <AppText variant="subhead" style={styles.platesBold}>{formatPlates(plates.perSide)}</AppText>
+                  {plates.leftover > 0 ? ` · sin discos para ${plates.leftover.toLocaleString('es-ES')} kg` : ''}
+                </AppText>
+              </View>
+            )}
             {/* Below the weight controls: appearing above them would move the buttons under the finger. */}
             {warmup.length > 0 && (
               <View style={styles.warmup} accessible accessibilityLabel={`Antes, calienta: ${warmup.map((item) => `${item.weightKg} kilos por ${item.reps}`).join(', ')}`}>
@@ -482,6 +493,16 @@ export function CoachMode({ session, onFinish }: { session: WorkoutSession; onFi
 }
 
 const styles = StyleSheet.create({
+  plates: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+  },
+  platesBold: {
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
   warmup: {
     flexDirection: 'row',
     alignItems: 'center',

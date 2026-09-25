@@ -8,6 +8,7 @@ import { formatRest } from '../../core/utils/workout';
 import { getExercise } from '../../data/catalog';
 import type { SetLog, WorkoutExerciseLog } from '../../core/types';
 import type { WarmupSet } from '../../core/utils/warmup';
+import { formatPlates, platesFor, usesPlates } from '../../core/utils/plates';
 import { appActions } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
 import { ActionSheet, AppText, Button, Chip, IconButton, type SheetAction } from '../../components/ui';
@@ -168,6 +169,9 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
   // Warm-up sets are a checklist, never logged: they must not count as volume or records.
   const [warmedUp, setWarmedUp] = useState<number[]>([]);
   const showWarmup = !!warmup?.length && done === 0;
+  // Plates for the next set to do (the one the athlete is about to load).
+  const nextSet = log.sets.find((set) => !set.completed);
+  const plates = usesPlates(exercise?.equipment) && nextSet ? platesFor(nextSet.weightKg) : null;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuActions: SheetAction[] = [
@@ -319,6 +323,16 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
         />
       ))}
 
+      {plates && (
+        <View style={styles.plates}>
+          <Ionicons name="disc-outline" size={14} color={theme.colors.textMuted} />
+          <AppText variant="caption" color="textSecondary">
+            Serie {nextSet!.setNumber}, por lado: {formatPlates(plates.perSide)}
+            {plates.leftover > 0 ? ` · sin discos para ${plates.leftover.toLocaleString('es-ES')} kg` : ''}
+          </AppText>
+        </View>
+      )}
+
       <Button label="Añadir serie" icon="add" variant="ghost" size="sm" onPress={() => appActions.addSet(index)} style={styles.addSet} />
       <ActionSheet visible={menuOpen} title={log.exerciseName} actions={menuActions} onClose={() => setMenuOpen(false)} />
     </View>
@@ -326,6 +340,13 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
 });
 
 const styles = StyleSheet.create({
+  plates: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+  },
   warmup: {
     gap: 6,
     paddingHorizontal: theme.spacing.md,

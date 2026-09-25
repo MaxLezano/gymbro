@@ -717,6 +717,15 @@ console.log('\n8. Accounts (per-device data spaces)');
     ]);
     assert(index === 2, `first heavy lift is ${index}`);
   });
+  test('plate calculator: plates per side for a standard bar', () => {
+    const { platesFor, usesPlates } = src('core/utils/plates.ts');
+    assert(platesFor(20) === null && platesFor(15) === null, 'empty bar');
+    assert(platesFor(60).perSide.join() === '20', platesFor(60).perSide.join());
+    assert(platesFor(102.5).perSide.join() === '25,15,1.25', platesFor(102.5).perSide.join());
+    const odd = platesFor(61);
+    assert(odd.perSide.join() === '20' && odd.leftover === 1, JSON.stringify(odd));
+    assert(usesPlates('barbell') && !usesPlates('dumbbell') && !usesPlates('ez barbell'), 'equipment');
+  });
   test('every focus named in a request is kept', () => {
     const focuses = parseQuery('Armame una rutina de espalda y biceps').focuses;
     assert(JSON.stringify(focuses) === JSON.stringify(['back', 'arms']), `focuses: ${focuses}`);
