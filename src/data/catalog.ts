@@ -6,6 +6,7 @@ import {
   labelEquipment,
   labelTarget,
 } from '../core/i18n/labels';
+import { spanishAliases } from '../core/i18n/exerciseAliases';
 
 export interface CatalogExercise extends Exercise {
   /** Title-cased display name. */
@@ -27,6 +28,7 @@ export const EXERCISES: CatalogExercise[] = (rawExercises as Exercise[]).map((ex
   searchText: normalizeText(
     [
       exercise.name,
+      spanishAliases(exercise.name),
       exercise.target,
       exercise.bodyPart,
       exercise.equipment,
