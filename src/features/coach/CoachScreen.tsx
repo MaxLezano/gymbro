@@ -13,6 +13,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
 import { askCoach, COACH_MODEL_LABEL, type CoachMessage } from '../../core/services/coach';
+import { coachAiDegraded } from '../../core/services/coach/status';
 import { calculateNutritionPlan } from '../../core/utils/nutrition';
 import { createId } from '../../core/utils/workout';
 import { FeedbackService } from '../../core/services/feedback';
@@ -180,7 +181,7 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
 
   const reversed = useMemo(() => [...messages].reverse(), [messages]);
   const lastAssistantId = [...messages].reverse().find((message) => message.role === 'assistant')?.id;
-  const lastSource = [...messages].reverse().find((message) => message.source)?.source;
+  const aiDegraded = useMemo(() => coachAiDegraded(messages.map((message) => message.source)), [messages]);
 
   const renderMessage = ({ item }: { item: CoachMessage }) => {
     if (item.role === 'user') {
@@ -237,9 +238,9 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
         <View style={styles.headerCenter}>
           <AppText variant="headline">Coach IA</AppText>
           <View style={styles.status}>
-            <View style={[styles.statusDot, lastSource === 'offline' && styles.statusOffline]} />
+            <View style={[styles.statusDot, aiDegraded && styles.statusOffline]} />
             <AppText variant="caption" color="textMuted">
-              {lastSource === 'offline' ? 'Sin IA · respuestas básicas' : `IA gratis · ${COACH_MODEL_LABEL}`}
+              {aiDegraded ? 'IA no disponible ahora · respuestas básicas' : `IA gratis · ${COACH_MODEL_LABEL}`}
             </AppText>
           </View>
         </View>
