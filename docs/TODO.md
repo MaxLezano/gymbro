@@ -18,7 +18,7 @@ Tick each item once it is done **and** checked on the emulator.
 
 ## 3. Features for people who train
 
-- [ ] Log what you ate: mark meals as eaten and track water.
+- [x] Log what you ate: mark meals as eaten and track water (resets daily).
 - [ ] Body weight: progress chart and a weekly weigh-in reminder.
 - [ ] Automatic warm-up sets for the first heavy lift of the day.
 - [ ] Plate calculator: which plates to load for X kg.

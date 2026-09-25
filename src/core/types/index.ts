@@ -88,6 +88,8 @@ export interface UserProfile {
   pantryMode?: boolean;
   /** "Another option" taps on today's menu: meal index -> swaps. Ignored once the date changes. */
   menuSwaps?: { date: string; meals: Record<string, number> };
+  /** Today's eating log: meals of the menu marked as eaten and water drunk. Starts fresh each day. */
+  todayLog?: { date: string; eatenMeals: number[]; waterMl: number };
   // Optional Google account link (display only; data stays on device)
   email?: string;
   photoUrl?: string;

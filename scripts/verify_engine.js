@@ -674,6 +674,19 @@ console.log('\n8. Accounts (per-device data spaces)');
     });
     assert(totals.every((total, i) => i === 0 || total > totals[i - 1]), `weekly sets by duration: ${totals}`);
   });
+  test('daily log: meals and water reset each day and stay in range', () => {
+    const { logFor, toggleMeal, addWater, eatenTotals } = src('core/utils/dailyLog.ts');
+    const stale = { todayLog: { date: '2026-03-09', eatenMeals: [0, 1], waterMl: 2000 } };
+    const today = logFor(stale, '2026-03-10');
+    assert(today.eatenMeals.length === 0 && today.waterMl === 0, 'yesterday leaked');
+    let log = toggleMeal(toggleMeal(today, 2), 0);
+    assert(JSON.stringify(log.eatenMeals) === '[0,2]', `eaten ${log.eatenMeals}`);
+    log = toggleMeal(log, 2);
+    assert(JSON.stringify(log.eatenMeals) === '[0]', 'untick');
+    assert(addWater(log, -250).waterMl === 0 && addWater(log, 20000).waterMl === 10000, 'water bounds');
+    const totals = eatenTotals([{ kcal: 700, proteinGrams: 50 }, { kcal: 1100, proteinGrams: 70 }], toggleMeal(log, 1));
+    assert(totals.kcal === 1800 && totals.protein === 120, JSON.stringify(totals));
+  });
   test('every focus named in a request is kept', () => {
     const focuses = parseQuery('Armame una rutina de espalda y biceps').focuses;
     assert(JSON.stringify(focuses) === JSON.stringify(['back', 'arms']), `focuses: ${focuses}`);

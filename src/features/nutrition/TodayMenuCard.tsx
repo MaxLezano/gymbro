@@ -9,6 +9,7 @@ import { adaptedToNote, lowCalorieNote, medicalDisclaimerFor } from '../../core/
 import { FeedbackService } from '../../core/services/feedback';
 import { AppText, Card, Chip, SectionHeader } from '../../components/ui';
 import { appActions, selectProfile, useAppStore } from '../../state/appStore';
+import { eatenTotals, logFor, toggleMeal } from '../../core/utils/dailyLog';
 
 /** Meal to open first: the next one by time of day (breakfast, lunch, snack, dinner). */
 function currentMealIndex(date = new Date()): number {
@@ -43,6 +44,15 @@ export function TodayMenuCard({ plan, conditions }: { plan: NutritionMetrics; co
   const disclaimer = medicalDisclaimerFor(conditions);
 
   // A few ingredients rarely reach the day's calories: say how far off and what closes the gap.
+  const log = logFor(profile, dateKey);
+  const eaten = eatenTotals(meals, log);
+  const toggleEaten = (index: number) => {
+    const next = toggleMeal(log, index);
+    if (next.eatenMeals.includes(index)) FeedbackService.success();
+    else FeedbackService.lightTap();
+    appActions.patchProfile({ todayLog: next });
+  };
+
   const dayKcal = meals.reduce((sum, meal) => sum + (meal.kcal ?? 0), 0);
   const pantryShort = pantryOn && dayKcal < plan.targetCalories * 0.9;
 
@@ -82,6 +92,16 @@ export function TodayMenuCard({ plan, conditions }: { plan: NutritionMetrics; co
           </Pressable>
         )}
       </View>
+      {/* Always shown, even at zero: appearing on the first tick would shift the list under the finger. */}
+      <View style={styles.eatenSummary}>
+        <AppText variant="caption" color="textSecondary">
+          Llevas <AppText variant="caption" style={styles.bold}>{eaten.kcal.toLocaleString('es-ES')}</AppText> de {plan.targetCalories.toLocaleString('es-ES')} kcal ·{' '}
+          <AppText variant="caption" style={styles.bold}>{eaten.protein}</AppText> de {plan.proteinGrams} g de proteína
+        </AppText>
+        <View style={styles.eatenTrack}>
+          <View style={[styles.eatenFill, { width: `${Math.min(100, Math.round((eaten.kcal / plan.targetCalories) * 100))}%` }]} />
+        </View>
+      </View>
       {pantryShort && (
         <View style={styles.note}>
           <Ionicons name="information-circle-outline" size={14} color={theme.colors.primary} />
@@ -98,6 +118,20 @@ export function TodayMenuCard({ plan, conditions }: { plan: NutritionMetrics; co
         const summary = [meal.kcal ? `${meal.kcal} kcal` : null, meal.proteinGrams ? `${meal.proteinGrams} g prot.` : null].filter(Boolean).join(' · ');
         return (
           <View key={`${meal.name}_${index}`} style={[styles.meal, index > 0 && styles.mealBorder]}>
+            <View style={styles.mealRow}>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: log.eatenMeals.includes(index) }}
+              accessibilityLabel={`Marcar ${label.toLowerCase()} como comido`}
+              hitSlop={10}
+              onPress={() => toggleEaten(index)}
+            >
+              <Ionicons
+                name={log.eatenMeals.includes(index) ? 'checkmark-circle' : 'ellipse-outline'}
+                size={24}
+                color={log.eatenMeals.includes(index) ? theme.colors.success : theme.colors.textMuted}
+              />
+            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ expanded }}
@@ -123,6 +157,7 @@ export function TodayMenuCard({ plan, conditions }: { plan: NutritionMetrics; co
               </AppText>
               <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={theme.colors.textMuted} />
             </Pressable>
+            </View>
             {expanded && (
               <View style={styles.items}>
                 {meal.fromPantry === false && (
@@ -216,7 +251,28 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.border,
   },
+  mealRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  eatenSummary: {
+    gap: 6,
+    marginBottom: theme.spacing.xs,
+  },
+  eatenTrack: {
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surfacePressed,
+  },
+  eatenFill: {
+    height: '100%',
+    borderRadius: 2,
+    backgroundColor: theme.colors.success,
+  },
   mealHeader: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
