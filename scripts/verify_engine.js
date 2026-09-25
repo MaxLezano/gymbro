@@ -91,7 +91,7 @@ const { fitsHomeEquipment, requiredHomeEquipment } = src('core/utils/equipment.t
 const { generateRoutine, FOCUS_LABELS } = src('core/utils/programGenerator.ts');
 const { SEED_ROUTINES, Accounts, Storage } = src('storage/index.ts');
 const { parseQuery, isOffTopic, unknownExerciseName } = src('core/services/coach/intents.ts');
-const { extractJson, normalizeBlocks } = src('core/services/coach/onlineClient.ts');
+const { extractJson, normalizeBlocks, isProviderNotice } = src('core/services/coach/onlineClient.ts');
 const { buildMealPlan } = src('core/services/coach/offlineEngine.ts');
 const { mergeCollection, mergeProfile, trackDeletions, pruneTombstones, TOMBSTONE_TTL_MS } = src('core/services/cloud/merge.ts');
 const { parseVoiceCommand } = src('core/services/voice/commands.ts');
@@ -410,6 +410,12 @@ test('"hazla más corta" asks for a shorter routine even without the model', () 
   const long = parseQuery('hazla más larga');
   assert(long.intent === 'routine' && long.minutes >= 60, JSON.stringify(long));
 });
+test('provider billing notices never reach the chat as a coach answer', () => {
+  const notice = "The account behind this API key doesn't have enough credits. Please [top up](https://enter.pollinations.ai/top-up), then try again.";
+  assert(isProviderNotice(notice, 57) && isProviderNotice("Hola", 0), "notice not detected");
+  assert(!isProviderNotice('{"text":"Sube de peso cuando completes el rango."}', 120), "real answer flagged");
+  assert(!isProviderNotice("Para ganar fuerza entrena cerca del fallo y descansa bien entre series.", 80), "plain answer flagged");
+});
 test('first-time loads never go below an empty barbell', () => {
   const { startingWeight } = src('core/utils/workout.ts');
   assert(startingWeight('barbell') === 20 && startingWeight('olympic barbell') === 20, 'barbell');
@@ -470,6 +476,88 @@ test('deletions become tombstones; re-adding an id clears it', () => {
 });
 test('old tombstones expire', () => {
   assert(Object.keys(pruneTombstones({ a: 0, b: TOMBSTONE_TTL_MS }, TOMBSTONE_TTL_MS + 1)).join() === 'b', 'a expired');
+});
+
+console.log('\n8b. Favorites, recents, goals and shared notes');
+test('dataset equipment matches the name prefix (lever, smith, cable, ...)', () => {
+  const RULES = [
+    [/^ez ?bar(bell)? /, 'ez barbell'],
+    [/^lever /, 'leverage machine'],
+    [/^smith /, 'smith machine'],
+    [/^cable /, 'cable'],
+    [/^dumbbell /, 'dumbbell'],
+    [/^barbell /, 'barbell'],
+    [/^kettlebell /, 'kettlebell'],
+    [/^band /, 'band'],
+    [/^sled /, 'sled machine'],
+  ];
+  const wrong = EXERCISES.filter((exercise) => {
+    const rule = RULES.find(([pattern]) => pattern.test(exercise.name));
+    return rule && exercise.equipment !== rule[1];
+  });
+  assert(wrong.length === 0, `${wrong.length} mismatched, e.g. ${wrong[0]?.id} ${wrong[0]?.name} (${wrong[0]?.equipment})`);
+  assert(getExercise('0574').equipment === 'leverage machine', 'lever bent over row is a machine');
+});
+test('recent exercises: newest session first, distinct, capped', () => {
+  const { recentExerciseIds } = src('core/utils/exerciseLists.ts');
+  const session = (at, ids) => ({ id: `s${at}`, startedAt: at, completedAt: at, exercises: ids.map((exerciseId) => ({ exerciseId, sets: [] })) });
+  const history = [session(1, ['a', 'b']), session(3, ['c', 'a']), session(2, ['d'])];
+  assert(recentExerciseIds(history).join() === 'c,a,d,b', recentExerciseIds(history).join());
+  assert(recentExerciseIds(history, 2).join() === 'c,a', 'limit');
+  assert(recentExerciseIds([]).length === 0, 'empty history');
+});
+test('favorites toggle to the front without duplicates', () => {
+  const { toggleFavorite } = src('core/utils/exerciseLists.ts');
+  assert(toggleFavorite(undefined, 'a').join() === 'a', 'first');
+  assert(toggleFavorite(['b'], 'a').join() === 'a,b', 'newest first');
+  assert(toggleFavorite(['a', 'b'], 'a').join() === 'b', 'removed');
+});
+test('favorites survive migration and the cloud merge', () => {
+  const { migrateProfile } = src('storage/index.ts');
+  const old = migrateProfile({ name: 'x' });
+  assert(Array.isArray(old.favoriteExerciseIds) && old.favoriteExerciseIds.length === 0, 'old profiles get []');
+  assert(old.profileNudgeDismissed === false, 'nudge visible by default');
+  assert(migrateProfile({ favoriteExerciseIds: ['a', 'a', 3, 'b'] }).favoriteExerciseIds.join() === 'a,b', 'cleaned');
+  assert(migrateProfile({ profileNudgeDismissed: true }).profileNudgeDismissed === true, 'dismissal kept');
+  const local = { profile: migrateProfile({ favoriteExerciseIds: ['a'] }), updatedAt: 1 };
+  const remote = { profile: migrateProfile({ favoriteExerciseIds: ['b', 'c'] }), updatedAt: 2 };
+  assert(mergeProfile(local, remote).profile.favoriteExerciseIds.join() === 'b,c', 'newer profile brings its favorites');
+  assert(mergeProfile(remote, null).profile.favoriteExerciseIds.join() === 'b,c', 'no remote keeps local');
+});
+test('goal: onboarding draft may be unset, saving keeps a real goal', () => {
+  const { profileFromDraft } = src('features/profile/profileDraft.ts');
+  const { migrateProfile } = src('storage/index.ts');
+  const base = migrateProfile({ fitnessGoal: 'fat_loss' });
+  const draft = {
+    name: 'A', gender: 'male', age: '30', weightKg: '80', heightCm: '180', neckCm: '', waistCm: '', hipCm: '', targetBodyFatPercent: '',
+    activityLevel: 'moderate', fitnessGoal: null, trainingLocation: 'gym', experience: 'beginner', homeEquipment: ['body_weight'],
+    gymType: 'large_gym', daysPerWeek: 3, sessionMinutes: 60, focusMuscles: [], dietaryConditions: [],
+  };
+  assert(profileFromDraft(base, draft).fitnessGoal === 'fat_loss', 'null keeps base');
+  assert(profileFromDraft(base, { ...draft, fitnessGoal: 'maintenance' }).fitnessGoal === 'maintenance', 'chosen goal saved');
+  assert(profileFromDraft({ ...base, favoriteExerciseIds: ['z'] }, draft).favoriteExerciseIds.join() === 'z', 'profile edits keep favorites');
+  const es = require(path.join(__dirname, '..', 'src', 'core', 'i18n', 'locales', 'es', 'catalog.json'));
+  assert(Object.keys(es.goals).join() === 'fat_loss,maintenance,muscle_gain,aggressive_bulk', 'four goals');
+  assert(/grasa.*músculo/.test(es.goals.maintenance.description), es.goals.maintenance.description);
+});
+test('meal plan notes are shared by the coach and the Nutrition tab', () => {
+  const { adaptedToNote, lowCalorieNote, medicalDisclaimerFor, MEDICAL_DISCLAIMER, LOW_CALORIE_TARGET } = src('core/services/coach/nutritionNotes.ts');
+  const { offlineReply } = src('core/services/coach/offlineEngine.ts');
+  const { migrateProfile } = src('storage/index.ts');
+  assert(adaptedToNote([]) === null && medicalDisclaimerFor([]) === null, 'nothing without conditions');
+  assert(adaptedToNote(['celiac', 'celiac']) === 'Adaptado a: celiaquía.', adaptedToNote(['celiac']));
+  assert(lowCalorieNote(LOW_CALORIE_TARGET) === null && /1499 kcal/.test(lowCalorieNote(1499)), 'threshold');
+  const profile = migrateProfile({ ...profileForPlan, dietaryConditions: ['hypertension'] });
+  const tiny = { ...plan, targetCalories: 1200 };
+  const text = offlineReply({ intent: 'nutrition' }, { profile, plan: tiny, history: [] }).text;
+  for (const note of [adaptedToNote(['hypertension']), lowCalorieNote(1200), MEDICAL_DISCLAIMER]) assert(text.includes(note), `coach misses: ${note}`);
+});
+test('coach status only degrades after two basic replies in a row', () => {
+  const { coachAiDegraded } = src('core/services/coach/status.ts');
+  assert(!coachAiDegraded([]), 'empty');
+  assert(!coachAiDegraded([undefined, 'online', undefined, 'offline']), 'one hiccup');
+  assert(coachAiDegraded(['online', 'offline', undefined, 'scope', 'offline']), 'two in a row (user turns and scope ignored)');
+  assert(!coachAiDegraded(['offline', 'offline', 'online']), 'recovered');
 });
 
 console.log('\n8. Accounts (per-device data spaces)');
