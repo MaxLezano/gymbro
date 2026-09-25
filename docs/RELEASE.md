@@ -22,6 +22,9 @@ GitHub Pages on a free plan needs a public repo. If the repo goes private, host 
 bunx eas-cli env:set --environment production --name EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID --value <web-client-id> --visibility plaintext
 bunx eas-cli env:set --environment production --name EXPO_PUBLIC_SUPABASE_URL --value <url> --visibility plaintext
 bunx eas-cli env:set --environment production --name EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY --value <key> --visibility plaintext
+bunx eas-cli env:set --environment production --name EXPO_PUBLIC_COACH_KEY --value <same as the Worker APP_KEY> --visibility sensitive
+bunx eas-cli env:set --environment production --name EXPO_PUBLIC_SENTRY_DSN --value <dsn> --visibility plaintext
+bunx eas-cli env:set --environment production --name SENTRY_AUTH_TOKEN --value <token> --visibility secret   # source maps upload
 ```
 
 Repeat with `--environment preview` for test APKs. (`npx eas-cli@latest` works the same.)
@@ -48,12 +51,34 @@ Release builds are signed with different keys than the local debug build, so Goo
 
 Google Auth Platform → Audience → **Publish app**. With only the basic scopes (email, profile, openid) no verification is required. Avoid uploading a logo in Branding: that triggers brand verification.
 
-## 7. Play Console
+## 7. Play Integrity for the coach Worker
+
+The Worker only accepts requests carrying the app key (`X-App-Key`). The key ships inside the app, so it stops casual use of the URL, not a determined attacker. Once the app is on Play, add a Play Integrity token check to the Worker (Google Cloud project linked in Play Console → App integrity).
+
+## 8. Play Console
 
 1. Developer account (one-time USD 25).
-2. Create the app, then complete *App content*: privacy policy URL, Data safety, account deletion URL (`.../privacy.html#eliminar-cuenta`), health apps declaration, content rating, target audience (13+).
+2. Create the app, then complete *App content*: privacy policy URL, Data safety (answers below), account deletion URL (`.../privacy.html#eliminar-cuenta`), health apps declaration, content rating, target audience (13+).
 3. New personal accounts must run a **closed test with at least 12 testers for 14 days** before applying for production.
 4. Upload the AAB (first upload is manual; later `npx eas-cli@latest submit -p android`).
+
+## 9. Data safety answers
+
+Kept in sync with `docs/privacy.html`. General answers: data is **encrypted in transit** (HTTPS everywhere); users **can request deletion** (in-app + email); no data is sold or used for ads.
+
+| Data type (Play category) | Collected | Shared | Why | Optional |
+|---|---|---|---|---|
+| Personal info → Name, Email address | Yes (Google sign-in, cloud backup in Supabase) | No | Account management | Yes (the app works without an account) |
+| Photos → profile photo URL from Google | Yes | No | Account management | Yes |
+| Health and fitness → Fitness info (workouts, weight, height, body measurements) | Yes (cloud backup) | No* | App functionality | Yes (backup only with Google) |
+| Health and fitness → Health info (dietary conditions: celiac, diabetes, hypertension...) | Yes | No* | App functionality | Yes |
+| Audio → Voice or sound recordings | Yes, **processed ephemerally** (speech recognition for dictation and voice commands; audio is never stored) | No | App functionality | Yes |
+| Messages → Other in-app messages (coach chat) | Yes, processed ephemerally | No* | App functionality | Yes |
+| App info and performance → Crash logs, Diagnostics (Sentry) | Yes | No | Analytics (fixing crashes) | No |
+
+* Sent to service providers acting on our behalf (Supabase, Cloudflare, Google Gemini API), which Play does not count as "sharing". Not sent: location, contacts, name/email to the AI, IP addresses to Sentry.
+
+In the Sentry project settings, turn on **Prevent storing of IP addresses** so the dashboard matches this declaration.
 
 ## Sideloaded APK updates (current setup)
 

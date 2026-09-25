@@ -19,7 +19,7 @@
 <body>
 <main>
   <h1>Política de privacidad de GymBro</h1>
-  <p class="muted">Última actualización: 24 de septiembre de 2026</p>
+  <p class="muted">Última actualización: 25 de septiembre de 2026</p>
 
   <p>GymBro es una app para planificar y registrar entrenamientos. Esta política explica qué datos usa, dónde se guardan y cómo puedes borrarlos.</p>
 
@@ -28,7 +28,10 @@
     <li><strong>Perfil:</strong> nombre, sexo, edad, peso, altura, medidas corporales opcionales, objetivo, nivel, días de entrenamiento y equipo disponible.</li>
     <li><strong>Entrenamientos:</strong> rutinas, series, pesos, repeticiones e historial.</li>
     <li><strong>Cuenta de Google (opcional):</strong> nombre, correo y foto, solo si eliges entrar con Google.</li>
-    <li><strong>Conversaciones con el coach:</strong> los mensajes que escribes al coach con IA.</li>
+    <li><strong>Nutrición:</strong> condiciones alimentarias que elijas (por ejemplo celiaquía o diabetes) y los ingredientes que marques como disponibles en casa.</li>
+    <li><strong>Conversaciones con el coach:</strong> los mensajes que escribes o dictas al coach con IA.</li>
+    <li><strong>Voz (opcional):</strong> audio del micrófono, solo mientras usas el dictado o los comandos de voz.</li>
+    <li><strong>Informes de errores:</strong> datos técnicos cuando la app falla.</li>
   </ul>
   <p>GymBro no usa publicidad, no rastrea tu ubicación y no vende ni comparte tus datos con fines comerciales.</p>
 
@@ -39,7 +42,13 @@
   </ul>
 
   <h2>Coach con IA</h2>
-  <p>Para responder, el coach envía tu mensaje y un resumen de entrenamiento (sexo, edad, peso, altura, objetivo, equipo y entrenamientos recientes) a <a href="https://pollinations.ai">Pollinations.ai</a>, un proveedor de modelos de lenguaje. No se envían tu nombre ni tu correo. Si no hay conexión, el coach responde con un motor local sin enviar nada.</p>
+  <p>Para responder, el coach envía tu mensaje y un resumen de tu perfil (sexo, edad, peso, altura, objetivo, nivel, equipo, condiciones alimentarias, ingredientes en casa y entrenamientos recientes) a un servidor propio de GymBro en <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare</a>. Ese servidor lo reenvía a un modelo de lenguaje: <a href="https://ai.google.dev/gemini-api/terms">Google Gemini</a> o, si no está disponible, <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare Workers AI</a>. No se envían tu nombre, tu correo ni tu foto, y GymBro no guarda las conversaciones en sus servidores. En el plan gratuito de Gemini, Google puede usar los mensajes para mejorar sus modelos. Si no hay conexión, el coach responde con un motor local sin enviar nada.</p>
+
+  <h2>Micrófono</h2>
+  <p>La app usa el micrófono solo cuando tú lo activas: para dictar un mensaje al coach o para los comandos de voz durante el entrenamiento ("siguiente", "listo", etc.). La voz se convierte en texto con el servicio de reconocimiento de voz de Android (normalmente de Google), que puede procesar el audio en sus servidores. GymBro no graba ni guarda el audio; solo usa el texto reconocido. Puedes negar o quitar el permiso del micrófono en cualquier momento y el resto de la app sigue funcionando.</p>
+
+  <h2>Informes de errores</h2>
+  <p>Si la app falla, envía un informe técnico a <a href="https://sentry.io/privacy/">Sentry</a> para que podamos corregirlo: el error, la pantalla y la versión de la app, el modelo del teléfono y la versión de Android. No incluye tu nombre, tu correo, tu dirección IP ni tus datos de entrenamiento.</p>
 
   <h2>Notificaciones</h2>
   <p>Las notificaciones del temporizador de descanso se generan en tu teléfono. No usamos notificaciones remotas.</p>
