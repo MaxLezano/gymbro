@@ -1,54 +1,15 @@
-import type { NutritionMetrics, UserProfile } from '../../types';
+import type { UserProfile } from '../../types';
 import { EXERCISES, getExercise } from '../../../data/catalog';
 import { fitsHomeEquipment } from '../../utils/equipment';
 import { FOCUS_LABELS, generateRoutine, suggestFocus } from '../../utils/programGenerator';
 import { estimateOneRepMax, personalRecords } from '../../utils/workout';
-import { GOAL_LABELS, labelTarget } from '../../i18n/labels';
+import { DIETARY_CONDITION_LABELS, GOAL_LABELS, labelTarget } from '../../i18n/labels';
 import type { CoachContext } from './context';
 import type { ParsedQuery } from './intents';
-import type { CoachReply, MealPlanItem } from './types';
+import { buildMealPlan } from './mealPlan';
+import type { CoachReply } from './types';
 
-const round10 = (value: number) => Math.max(10, Math.round(value / 10) * 10);
-
-/** Deterministic day of eating that lands close to the athlete's macros. */
-export function buildMealPlan(plan: NutritionMetrics): MealPlanItem[] {
-  const { proteinGrams: p, carbGrams: c, fatGrams: f, targetCalories: kcal } = plan;
-  return [
-    {
-      name: 'Desayuno',
-      kcal: Math.round(kcal * 0.25),
-      proteinGrams: Math.round(p * 0.25),
-      items: [`${round10((c * 0.25 * 0.7) / 0.66)} g de avena`, `${round10(Math.min(300, (p * 0.25 * 0.6) / 0.1))} g de yogur griego natural`, '1 banana'],
-    },
-    {
-      name: 'Almuerzo',
-      kcal: Math.round(kcal * 0.35),
-      proteinGrams: Math.round(p * 0.35),
-      items: [
-        `${round10((p * 0.35 * 0.85) / 0.31)} g de pechuga de pollo (cocida)`,
-        `${round10((c * 0.35) / 0.28)} g de arroz (cocido)`,
-        'Verduras a gusto',
-        `${Math.max(1, Math.round((f * 0.35 * 0.5) / 13.5))} cda de aceite de oliva`,
-      ],
-    },
-    {
-      name: 'Merienda',
-      kcal: Math.round(kcal * 0.15),
-      proteinGrams: Math.round(p * 0.15),
-      items: [`${Math.max(1, Math.round((p * 0.15 * 0.6) / 6.5))} huevos`, `${round10((c * 0.15 * 0.8) / 0.41)} g de pan integral`, '1 fruta'],
-    },
-    {
-      name: 'Cena',
-      kcal: Math.round(kcal * 0.25),
-      proteinGrams: Math.round(p * 0.25),
-      items: [
-        `${round10((p * 0.25 * 0.85) / 0.26)} g de pescado o atún`,
-        `${round10((c * 0.25) / 0.17)} g de papa o batata`,
-        `${round10((f * 0.25 * 0.5) / 0.15)} g de palta`,
-      ],
-    },
-  ];
-}
+export { buildMealPlan } from './mealPlan';
 
 function prescriptionText(profile: UserProfile): string {
   switch (profile.fitnessGoal) {
@@ -62,6 +23,12 @@ function prescriptionText(profile: UserProfile): string {
       return 'Para ganar músculo, deja **1–2 repeticiones en reserva** en cada serie y sube peso cuando completes el tope del rango en todas las series.';
   }
 }
+
+/** Shown whenever a menu is adapted to a health condition. */
+/** Below this daily target the minimum sensible servings can overshoot, so the coach warns. */
+export const LOW_CALORIE_TARGET = 1500;
+
+export const MEDICAL_DISCLAIMER = 'Son recomendaciones generales y no reemplazan la indicación de tu médico o nutricionista.';
 
 const DEFAULT_SUGGESTIONS = ['Armame una rutina para hoy', '¿Cuánta proteína necesito?', '¿Cómo progreso más rápido?'];
 
@@ -128,15 +95,27 @@ export function offlineReply(query: ParsedQuery, context: CoachContext): Omit<Co
       };
     }
 
-    case 'nutrition':
+    case 'nutrition': {
+      const conditions = profile.dietaryConditions ?? [];
+      const lowCalorieWarning =
+        plan.targetCalories < LOW_CALORIE_TARGET
+          ? `\n\n**Atención:** tu meta de ${plan.targetCalories} kcal es muy baja. El menú usa porciones mínimas razonables y algunos días puede quedar un poco por encima. ` +
+            'No recortes más las porciones por tu cuenta: un déficit tan grande conviene hacerlo con un nutricionista.'
+          : '';
+      const adapted = conditions.length
+        ? ` Lo adapté a: ${conditions.map((condition) => DIETARY_CONDITION_LABELS[condition].title.toLowerCase()).join(', ')}.`
+        : '';
       return {
         text:
           `Para **${GOAL_LABELS[profile.fitnessGoal].title.toLowerCase()}** tu meta es **${plan.targetCalories} kcal** al día. ` +
           `Reparte la proteína en 3–5 tomas de unos ${Math.round(plan.proteinGrams / 4)} g y concentra los carbohidratos alrededor del entrenamiento.\n\n` +
-          'Este es un ejemplo de día que se acerca a tus macros (cantidades aproximadas):',
-        blocks: [{ type: 'macros' }, { type: 'meals', meals: buildMealPlan(plan) }],
+          `Este es tu menú de hoy, cerca de tus macros (cantidades aproximadas; cambia cada día).${adapted}` +
+          lowCalorieWarning +
+          (conditions.length ? `\n\n${MEDICAL_DISCLAIMER}` : ''),
+        blocks: [{ type: 'macros' }, { type: 'meals', meals: buildMealPlan(plan, { conditions }) }],
         suggestions: ['¿Qué como antes de entrenar?', 'Dame opciones vegetarianas', '¿Me conviene tomar creatina?'],
       };
+    }
 
     case 'body': {
       const diff = Math.round((profile.weightKg - plan.idealWeightKg) * 10) / 10;

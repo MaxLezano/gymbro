@@ -12,7 +12,7 @@ import { AppText, Button, Card, ListRow, ModalHeader } from '../../components/ui
 import { StackScreen } from '../../components/layout/TabScreen';
 import { profileFromDraft, useProfileDraft } from './profileDraft';
 import { CloudBackupSection } from './CloudBackupSection';
-import { ActivitySection, BasicsSection, GoalSection, LivePreview, MeasurementsSection, TrainingSection } from './ProfileSections';
+import { ActivitySection, BasicsSection, DietaryConditionsSection, GoalSection, LivePreview, MeasurementsSection, TrainingSection } from './ProfileSections';
 
 const PRIVACY_URL = 'https://maxlezano.github.io/gymbro/privacy.html';
 
@@ -153,6 +153,9 @@ export function ProfileScreen() {
           </Section>
           <Section title="Actividad diaria">
             <ActivitySection draft={draft} update={update} />
+          </Section>
+          <Section title="Alimentación">
+            <DietaryConditionsSection draft={draft} update={update} />
           </Section>
           <Section title="Entrenamiento">
             <TrainingSection draft={draft} update={update} merge={merge} />

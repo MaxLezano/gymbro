@@ -2,8 +2,8 @@ import React from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
-import type { ActivityLevel, ExperienceLevel, FitnessGoal, FocusMuscle, Gender, GymType, HomeEquipment, NutritionMetrics } from '../../core/types';
-import { ACTIVITY_LABELS, GOAL_LABELS, HOME_EQUIPMENT_OPTIONS } from '../../core/i18n/labels';
+import type { ActivityLevel, DietaryCondition, ExperienceLevel, FitnessGoal, Gender, GymType, HomeEquipment, NutritionMetrics, PriorityMuscle } from '../../core/types';
+import { ACTIVITY_LABELS, DIETARY_CONDITION_LABELS, DIETARY_CONDITIONS, GOAL_LABELS, HOME_EQUIPMENT_OPTIONS } from '../../core/i18n/labels';
 import { FeedbackService } from '../../core/services/feedback';
 import { AppText, SegmentedControl } from '../../components/ui';
 import { MacroSummary } from '../nutrition/MacroSummary';
@@ -131,16 +131,19 @@ function OptionCard({
   selected,
   onPress,
   icon,
+  multi,
 }: {
   title: string;
   description: string;
   selected: boolean;
   onPress: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
+  /** Checkbox look for options that can be combined. */
+  multi?: boolean;
 }) {
   return (
     <Pressable
-      accessibilityRole="radio"
+      accessibilityRole={multi ? 'checkbox' : 'radio'}
       accessibilityState={{ selected }}
       onPress={() => {
         FeedbackService.selection();
@@ -161,31 +164,77 @@ function OptionCard({
           {description}
         </AppText>
       </View>
-      <View style={[styles.radio, selected && styles.radioOn]}>{selected && <View style={styles.radioDot} />}</View>
+      {multi ? (
+        <View style={[styles.radio, styles.checkbox, selected && styles.checkboxOn]}>
+          {selected && <Ionicons name="checkmark" size={15} color={theme.colors.onPrimary} />}
+        </View>
+      ) : (
+        <View style={[styles.radio, selected && styles.radioOn]}>{selected && <View style={styles.radioDot} />}</View>
+      )}
     </Pressable>
   );
 }
 
-const GOAL_ICONS: Record<FitnessGoal, keyof typeof Ionicons.glyphMap> = {
-  fat_loss: 'trending-down',
-  maintenance: 'swap-horizontal',
-  muscle_gain: 'trending-up',
-  aggressive_bulk: 'rocket-outline',
-};
+/**
+ * "Perder grasa" and "Ganar músculo" can be combined: doing both at once is a
+ * recomposition (maintenance calories, high protein). "Volumen intenso" is a big
+ * surplus, so it stands alone. The stored goal stays a single FitnessGoal.
+ */
+type GoalChoice = 'lose' | 'gain' | 'bulk';
+
+function choicesFor(goal: FitnessGoal): Set<GoalChoice> {
+  if (goal === 'fat_loss') return new Set(['lose']);
+  if (goal === 'muscle_gain') return new Set(['gain']);
+  if (goal === 'aggressive_bulk') return new Set(['bulk']);
+  return new Set(['lose', 'gain']);
+}
+
+function goalFor(choices: Set<GoalChoice>): FitnessGoal {
+  if (choices.has('bulk')) return 'aggressive_bulk';
+  if (choices.has('lose') && choices.has('gain')) return 'maintenance';
+  return choices.has('lose') ? 'fat_loss' : 'muscle_gain';
+}
+
+const GOAL_CHOICES: { id: GoalChoice; goal: FitnessGoal; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'lose', goal: 'fat_loss', icon: 'trending-down' },
+  { id: 'gain', goal: 'muscle_gain', icon: 'trending-up' },
+  { id: 'bulk', goal: 'aggressive_bulk', icon: 'rocket-outline' },
+];
 
 export function GoalSection({ draft, update }: { draft: ProfileDraft; update: Update }) {
+  const choices = choicesFor(draft.fitnessGoal);
+  const toggle = (id: GoalChoice) => {
+    let next: Set<GoalChoice>;
+    if (id === 'bulk') next = new Set(['bulk']);
+    else {
+      next = new Set([...choices].filter((choice) => choice !== 'bulk'));
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+    }
+    if (next.size > 0) update('fitnessGoal', goalFor(next));
+  };
+  const plan = GOAL_LABELS[draft.fitnessGoal];
+
   return (
     <View style={styles.options}>
-      {(Object.keys(GOAL_LABELS) as FitnessGoal[]).map((goal) => (
+      {GOAL_CHOICES.map((item) => (
         <OptionCard
-          key={goal}
-          icon={GOAL_ICONS[goal]}
-          title={GOAL_LABELS[goal].title}
-          description={`${GOAL_LABELS[goal].description} · ${GOAL_LABELS[goal].short}`}
-          selected={draft.fitnessGoal === goal}
-          onPress={() => update('fitnessGoal', goal)}
+          key={item.id}
+          icon={item.icon}
+          title={GOAL_LABELS[item.goal].title}
+          description={GOAL_LABELS[item.goal].description}
+          selected={choices.has(item.id)}
+          multi={item.id !== 'bulk'}
+          onPress={() => toggle(item.id)}
         />
       ))}
+      <View style={styles.hintRow}>
+        <Ionicons name="flag-outline" size={16} color={theme.colors.primary} />
+        <AppText variant="subhead" color="textSecondary" style={styles.flex}>
+          Tu plan: <AppText variant="subhead" style={styles.bold}>{plan.title}</AppText> · {plan.short}
+          {draft.fitnessGoal === 'maintenance' ? '. Pierdes grasa y ganas músculo a la vez, con proteína alta.' : ''}
+        </AppText>
+      </View>
     </View>
   );
 }
@@ -379,7 +428,7 @@ export function DurationSection({ draft, update }: { draft: ProfileDraft; update
   );
 }
 
-const FOCUS_OPTIONS: { id: FocusMuscle; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const FOCUS_OPTIONS: { id: PriorityMuscle | 'balanced'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { id: 'balanced', label: 'Equilibrado', icon: 'body-outline' },
   { id: 'chest', label: 'Pecho', icon: 'shirt-outline' },
   { id: 'back', label: 'Espalda', icon: 'git-merge-outline' },
@@ -387,37 +436,113 @@ const FOCUS_OPTIONS: { id: FocusMuscle; label: string; icon: keyof typeof Ionico
   { id: 'glutes', label: 'Glúteos', icon: 'accessibility-outline' },
   { id: 'shoulders', label: 'Hombros', icon: 'barbell-outline' },
   { id: 'arms', label: 'Brazos', icon: 'fitness-outline' },
-  { id: 'core', label: 'Core', icon: 'ellipse-outline' },
+  { id: 'core', label: 'Core (abdomen)', icon: 'ellipse-outline' },
 ];
 
+/** More than this and "priority" stops meaning anything. */
+const MAX_PRIORITIES = 3;
+
 export function FocusMuscleSection({ draft, update }: { draft: ProfileDraft; update: Update }) {
+  const selected = draft.focusMuscles;
+  const full = selected.length >= MAX_PRIORITIES;
+
+  const toggle = (id: PriorityMuscle | 'balanced') => {
+    if (id === 'balanced') update('focusMuscles', []);
+    else if (selected.includes(id)) update('focusMuscles', selected.filter((muscle) => muscle !== id));
+    else if (!full) update('focusMuscles', [...selected, id]);
+  };
+
   return (
-    <View style={styles.equipmentGrid}>
-      {FOCUS_OPTIONS.map((item) => {
-        const selected = draft.focusMuscle === item.id;
-        return (
-          <Pressable
-            key={item.id}
-            accessibilityRole="radio"
-            accessibilityState={{ selected }}
-            onPress={() => {
-              FeedbackService.selection();
-              update('focusMuscle', item.id);
-            }}
-            style={({ pressed }) => [styles.equipment, selected && styles.equipmentOn, pressed && styles.optionPressed]}
-          >
-            <Ionicons name={item.icon} size={18} color={selected ? theme.colors.primary : theme.colors.textMuted} />
-            <AppText
-              variant="subhead"
-              style={[styles.equipmentLabel, { color: selected ? theme.colors.text : theme.colors.textSecondary }]}
-              numberOfLines={1}
+    <View style={styles.section}>
+      <View style={styles.equipmentGrid}>
+        {FOCUS_OPTIONS.map((item) => {
+          const on = item.id === 'balanced' ? selected.length === 0 : selected.includes(item.id);
+          const disabled = !on && item.id !== 'balanced' && full;
+          return (
+            <Pressable
+              key={item.id}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: on, disabled }}
+              disabled={disabled}
+              onPress={() => {
+                FeedbackService.selection();
+                toggle(item.id);
+              }}
+              style={({ pressed }) => [
+                styles.equipment,
+                on && styles.equipmentOn,
+                disabled && styles.disabled,
+                pressed && styles.optionPressed,
+              ]}
             >
-              {item.label}
-            </AppText>
-            {selected && <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />}
-          </Pressable>
-        );
-      })}
+              <Ionicons name={item.icon} size={18} color={on ? theme.colors.primary : theme.colors.textMuted} />
+              <AppText
+                variant="subhead"
+                style={[styles.equipmentLabel, { color: on ? theme.colors.text : theme.colors.textSecondary }]}
+                numberOfLines={1}
+              >
+                {item.label}
+              </AppText>
+              {on && <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />}
+            </Pressable>
+          );
+        })}
+      </View>
+      <View style={styles.hintRow}>
+        <Ionicons name="information-circle-outline" size={16} color={theme.colors.primary} />
+        <AppText variant="subhead" color="textSecondary" style={styles.flex}>
+          {selected.length === 0
+            ? `Puedes elegir hasta ${MAX_PRIORITIES} grupos.`
+            : `${selected.length} de ${MAX_PRIORITIES} elegidos. Cada uno suma ejercicios extra los días que lo entrenas.`}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+const CONDITION_ICONS: Record<DietaryCondition, keyof typeof Ionicons.glyphMap> = {
+  celiac: 'leaf-outline',
+  lactose_intolerance: 'water-outline',
+  diabetes: 'pulse-outline',
+  hypertension: 'heart-outline',
+  high_cholesterol: 'fish-outline',
+};
+
+/** Optional health conditions the coach's meal plans must respect. */
+export function DietaryConditionsSection({ draft, update }: { draft: ProfileDraft; update: Update }) {
+  const selected = draft.dietaryConditions;
+  const toggle = (id: DietaryCondition) =>
+    update('dietaryConditions', selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id]);
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.options}>
+        <OptionCard
+          multi
+          icon="checkmark-done-outline"
+          title="Ninguna"
+          description="Sin restricciones en tus menús"
+          selected={selected.length === 0}
+          onPress={() => update('dietaryConditions', [])}
+        />
+        {DIETARY_CONDITIONS.map((id) => (
+          <OptionCard
+            key={id}
+            multi
+            icon={CONDITION_ICONS[id]}
+            title={DIETARY_CONDITION_LABELS[id].title}
+            description={DIETARY_CONDITION_LABELS[id].description}
+            selected={selected.includes(id)}
+            onPress={() => toggle(id)}
+          />
+        ))}
+      </View>
+      <View style={styles.hintRow}>
+        <Ionicons name="information-circle-outline" size={16} color={theme.colors.primary} />
+        <AppText variant="subhead" color="textSecondary" style={styles.flex}>
+          Adaptamos los menús del coach. Son recomendaciones generales y no reemplazan a tu médico o nutricionista.
+        </AppText>
+      </View>
     </View>
   );
 }
@@ -554,6 +679,16 @@ const styles = StyleSheet.create({
   },
   radioOn: {
     borderColor: theme.colors.primary,
+  },
+  checkbox: {
+    borderRadius: 6,
+  },
+  checkboxOn: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary,
+  },
+  disabled: {
+    opacity: 0.4,
   },
   radioDot: {
     width: 10,

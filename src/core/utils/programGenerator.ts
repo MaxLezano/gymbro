@@ -1,4 +1,4 @@
-import type { CoverKey, ExperienceLevel, FitnessGoal, FocusMuscle, Routine, RoutineExercise, UserProfile } from '../types';
+import type { CoverKey, ExperienceLevel, FitnessGoal, PriorityMuscle, Routine, RoutineExercise, UserProfile } from '../types';
 import { EXERCISES, getExercise, type CatalogExercise } from '../../data/catalog';
 import { fitsHomeEquipment } from './equipment';
 import { createId } from './workout';
@@ -102,7 +102,7 @@ function prescription(goal: FitnessGoal, level: ExperienceLevel, compound: boole
 }
 
 /** Extra slots appended when the athlete wants to prioritise a muscle group. */
-const FOCUS_MUSCLE_SLOTS: Record<Exclude<FocusMuscle, 'balanced'>, { slots: SlotId[]; focuses: TrainingFocus[] }> = {
+const FOCUS_MUSCLE_SLOTS: Record<PriorityMuscle, { slots: SlotId[]; focuses: TrainingFocus[] }> = {
   chest: { slots: ['inclinePush', 'chestIso'], focuses: ['full_body', 'upper', 'push', 'chest'] },
   back: { slots: ['hPull', 'vPull'], focuses: ['full_body', 'upper', 'pull', 'back'] },
   legs: { slots: ['quadIso', 'lunge'], focuses: ['full_body', 'lower', 'legs'] },
@@ -131,7 +131,7 @@ const FOCUS_COVERS: Record<TrainingFocus, CoverKey> = {
 export interface GenerateOptions {
   focus: TrainingFocus;
   profile: Pick<UserProfile, 'trainingLocation' | 'homeEquipment' | 'fitnessGoal' | 'experience'> &
-    Partial<Pick<UserProfile, 'focusMuscle'>>;
+    Partial<Pick<UserProfile, 'focusMuscles'>>;
   /** Force a location regardless of the profile preference. */
   location?: 'home' | 'gym';
   maxExercises?: number;
@@ -150,11 +150,12 @@ export function generateRoutine({ focus, profile, location, maxExercises, title,
   const chosen = new Set<string>();
   const exercises: RoutineExercise[] = [];
 
-  // Priority muscle: its extra slots go right after the main compound lifts.
-  const priority = profile.focusMuscle && profile.focusMuscle !== 'balanced' ? FOCUS_MUSCLE_SLOTS[profile.focusMuscle] : null;
+  // Priority muscles: their extra slots go right after the main compound lifts.
+  // One priority on this day gets two extra slots; several share the space with one each.
   const template = TEMPLATES[focus];
-  const slots: SlotId[] =
-    priority && priority.focuses.includes(focus) ? [...template.slice(0, 2), ...priority.slots, ...template.slice(2)] : template;
+  const priorities = (profile.focusMuscles ?? []).map((muscle) => FOCUS_MUSCLE_SLOTS[muscle]).filter((item) => item?.focuses.includes(focus));
+  const extra = priorities.length === 1 ? priorities[0].slots : priorities.map((item) => item.slots[0]);
+  const slots: SlotId[] = [...template.slice(0, 2), ...extra.filter((slot) => !template.slice(0, 2).includes(slot)), ...template.slice(2)];
 
   const pickFor = (slot: Slot, avoid?: Set<string>) =>
     slot.candidates

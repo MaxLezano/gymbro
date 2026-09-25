@@ -18,6 +18,7 @@ import { profileFromDraft, useProfileDraft } from './profileDraft';
 import {
   ActivitySection,
   BasicsSection,
+  DietaryConditionsSection,
   DurationSection,
   EquipmentSection,
   ExperienceSection,
@@ -37,6 +38,7 @@ type StepKey =
   | 'experience'
   | 'basics'
   | 'activity'
+  | 'diet'
   | 'gym'
   | 'equipment'
   | 'days'
@@ -51,11 +53,12 @@ const STEP_COPY: Record<Exclude<StepKey, 'building' | 'ready'>, { title: string;
   experience: { title: '¿Cuánta experiencia tienes?' },
   basics: { title: 'Sobre ti', subtitle: 'Para calcular tu metabolismo con precisión. Tus datos no salen de tu teléfono.' },
   activity: { title: '¿Qué tan activo eres?', subtitle: 'Incluye el entrenamiento y tu día a día.' },
+  diet: { title: '¿Alguna condición en tu alimentación?', subtitle: 'Opcional. Así los menús del coach la tienen en cuenta.' },
   gym: { title: '¿Dónde entrenas?', subtitle: 'Elegimos ejercicios que realmente puedas hacer.' },
   equipment: { title: '¿Qué equipo tienes?', subtitle: 'Puedes cambiarlo cuando quieras desde tu perfil.' },
   days: { title: '¿Cuántos días por semana?', subtitle: 'Mejor constante que perfecto.' },
   duration: { title: '¿Cuánto duran tus sesiones?' },
-  focus: { title: '¿Algún músculo que quieras priorizar?', subtitle: 'Tu programa seguirá siendo equilibrado, con volumen extra para ese grupo.' },
+  focus: { title: '¿Qué músculos quieres priorizar?', subtitle: 'Elige hasta 3. Tu programa seguirá siendo equilibrado, con volumen extra para esos grupos.' },
 };
 
 const BUILD_STEPS = [
@@ -129,6 +132,7 @@ export function OnboardingScreen() {
       'experience',
       'basics',
       'activity',
+      'diet',
       'gym',
       ...(draft.trainingLocation === 'home' ? (['equipment'] as StepKey[]) : []),
       'days',
@@ -234,6 +238,7 @@ export function OnboardingScreen() {
           {current === 'experience' && <ExperienceSection draft={draft} update={update} />}
           {current === 'basics' && <BasicsSection draft={draft} update={update} errors={errors} showName={false} />}
           {current === 'activity' && <ActivitySection draft={draft} update={update} />}
+          {current === 'diet' && <DietaryConditionsSection draft={draft} update={update} />}
           {current === 'gym' && <GymTypeSection draft={draft} merge={merge} />}
           {current === 'equipment' && <EquipmentSection draft={draft} update={update} />}
           {current === 'days' && <FrequencySection draft={draft} update={update} />}

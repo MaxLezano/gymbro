@@ -105,9 +105,8 @@ test('every exercise has media and instructions', () => {
 test('display names are title-cased', () => assert(getExercise('0289').displayName === 'Dumbbell Bench Press', getExercise('0289').displayName));
 
 console.log('\n2. Nutrition engine (Mifflin-St Jeor, Navy, macros)');
-const plan = calculateNutritionPlan({
-  gender: 'male', weightKg: 78, heightCm: 178, age: 26, activityLevel: 'moderate', fitnessGoal: 'muscle_gain',
-});
+const profileForPlan = { gender: 'male', weightKg: 78, heightCm: 178, age: 26, activityLevel: 'moderate', fitnessGoal: 'muscle_gain' };
+const plan = calculateNutritionPlan(profileForPlan);
 test('BMR 1768 / TDEE 2740 / target 2990 kcal', () => {
   near(plan.bmr, 1768, 1, 'BMR');
   near(plan.tdee, 2740, 2, 'TDEE');
@@ -185,6 +184,27 @@ test('no duplicated exercises inside a routine', () => {
   const ids = routine.exercises.map((item) => item.exerciseId);
   assert(new Set(ids).size === ids.length, 'duplicates');
 });
+test('priority muscles add extra work on the days that train them', () => {
+  const base = { trainingLocation: 'gym', homeEquipment: [], fitnessGoal: 'muscle_gain', experience: 'advanced' };
+  const targetsOf = (focusMuscles) =>
+    generateRoutine({ focus: 'lower', profile: { ...base, focusMuscles }, maxExercises: 8 }).exercises.map((item) => getExercise(item.exerciseId).target);
+  const count = (list, target) => list.filter((item) => item === target).length;
+  const balanced = targetsOf([]);
+  const both = targetsOf(['glutes', 'core']);
+  assert(count(both, 'glutes') > count(balanced, 'glutes') && count(both, 'abs') > count(balanced, 'abs'), `${balanced} | ${both}`);
+  const upper = generateRoutine({ focus: 'upper', profile: { ...base, focusMuscles: ['glutes'] } }).exercises;
+  assert(!upper.some((item) => getExercise(item.exerciseId).target === 'glutes'), 'glutes on an upper day');
+});
+test('old single priority migrates to the list', () => {
+  const { migrateProfile } = src('storage/index.ts');
+  assert(migrateProfile({ focusMuscle: 'legs' }).focusMuscles.join() === 'legs', 'legs');
+  assert(migrateProfile({ focusMuscle: 'balanced' }).focusMuscles.length === 0, 'balanced');
+  assert(migrateProfile({ focusMuscle: 'legs', focusMuscles: ['arms', 'core'] }).focusMuscles.join() === 'arms,core', 'new wins');
+});
+test('recomposition eats at maintenance with high protein', () => {
+  const recomp = calculateNutritionPlan({ ...profileForPlan, fitnessGoal: 'maintenance' });
+  assert(recomp.targetCalories === recomp.tdee && recomp.proteinGrams === Math.round(profileForPlan.weightKg * 2.2), JSON.stringify(recomp));
+});
 test('seed routines reference real exercises', () => {
   for (const routine of SEED_ROUTINES) {
     for (const item of routine.exercises) assert(getExercise(item.exerciseId), `${routine.id}: ${item.exerciseId}`);
@@ -236,6 +256,97 @@ test('model blocks are validated against the catalog', () => {
 test('offline meal plan lands within 15% of the protein target', () => {
   const protein = buildMealPlan(plan).reduce((sum, meal) => sum + (meal.proteinGrams ?? 0), 0);
   near(protein, plan.proteinGrams, plan.proteinGrams * 0.15, 'protein');
+});
+const menuOf = (date, conditions) => JSON.stringify(buildMealPlan(plan, { date, conditions }));
+const DAYS = Array.from({ length: 30 }, (_, i) => new Date(2026, 0, 1 + i));
+test('meal plan: same day is stable, different days vary', () => {
+  assert(menuOf('2026-03-10') === menuOf('2026-03-10'), 'same date differs');
+  assert(menuOf(new Date(2026, 2, 10, 8)) === menuOf(new Date(2026, 2, 10, 22)), 'same local day differs by hour');
+  const distinct = new Set(DAYS.slice(0, 7).map((day) => menuOf(day)));
+  assert(distinct.size >= 6, `only ${distinct.size} distinct menus in a week`);
+});
+test('meal plan: lunch and dinner never share the main protein', () => {
+  const MAINS = /pollo|vacuna|cerdo|pescado|salmón|atún|tofu/;
+  for (const day of DAYS) {
+    const meals = buildMealPlan(plan, { date: day });
+    const main = (meal) => meal.items.find((item) => MAINS.test(item)).match(MAINS)[0].replace('salmón', 'pescado');
+    assert(main(meals[1]) !== main(meals[3]), `${day.toDateString()}: ${main(meals[1])}`);
+  }
+});
+test('meal plan stays close to protein and calories every day (large and small athletes)', () => {
+  const small = calculateNutritionPlan({ gender: 'female', weightKg: 55, heightCm: 160, age: 35, activityLevel: 'light', fitnessGoal: 'fat_loss' });
+  for (const [target, kcalTolerance] of [[plan, 0.15], [small, 0.2]]) {
+    for (const day of DAYS) {
+      const meals = buildMealPlan(target, { date: day });
+      const sum = (key) => meals.reduce((total, meal) => total + meal[key], 0);
+      near(sum('proteinGrams'), target.proteinGrams, target.proteinGrams * 0.15, `protein ${day.toDateString()}`);
+      near(sum('kcal'), target.targetCalories, target.targetCalories * kcalTolerance, `kcal ${target.targetCalories} ${day.toDateString()}`);
+    }
+  }
+});
+const FORBIDDEN = {
+  celiac: /pan integral|fideos de trigo|\bavena\b(?! certificada sin TACC)|trigo/i,
+  lactose_intolerance: /yogur griego natural|leche descremada(?! deslactosada)|queso cottage|proteína en polvo(?! aislada sin lactosa)/i,
+  diabetes: /banana|arroz blanco|papa hervida|jugo|pan blanco/i,
+  hypertension: /atún en lata|embutido|jamón|queso duro/i,
+  high_cholesterol: /carne vacuna|manteca|mantequilla(?! de maní)|(^|\| )\d+ huevos?\b/i,
+};
+const CONDITIONS = Object.keys(FORBIDDEN);
+const combos = Array.from({ length: 1 << CONDITIONS.length }, (_, mask) => CONDITIONS.filter((_, i) => mask & (1 << i)));
+test('meal plan respects every combination of dietary conditions', () => {
+  for (const conditions of combos) {
+    for (const day of DAYS.slice(0, 10)) {
+      const meals = buildMealPlan(plan, { date: day, conditions });
+      assert(meals.length === 4 && meals.every((meal) => meal.items.length >= 2), `empty meal for ${conditions}`);
+      const text = meals.flatMap((meal) => meal.items).join(' | ');
+      for (const condition of conditions) assert(!FORBIDDEN[condition].test(text), `${condition} in [${conditions}]: ${text}`);
+      if (conditions.includes('hypertension')) assert(/sin sal agregada/.test(text), 'no salt note');
+    }
+  }
+});
+test('dietary conditions reach the coach and old profiles get none', () => {
+  const { migrateProfile } = src('storage/index.ts');
+  assert(migrateProfile({}).dietaryConditions.length === 0, 'missing field');
+  assert(migrateProfile({ dietaryConditions: ['celiac'] }).dietaryConditions.join() === 'celiac', 'kept');
+  const { offlineReply } = src('core/services/coach/offlineEngine.ts');
+  const { describeAthlete } = src('core/services/coach/context.ts');
+  const profile = { ...migrateProfile({ ...profileForPlan }), dietaryConditions: ['celiac', 'diabetes'] };
+  const reply = offlineReply({ intent: 'nutrition' }, { profile, plan, history: [] });
+  assert(/no reemplazan/.test(reply.text) && /celiaquía/.test(reply.text), reply.text);
+  assert(!/no reemplazan/.test(offlineReply({ intent: 'nutrition' }, { profile: { ...profile, dietaryConditions: [] }, plan, history: [] }).text), 'disclaimer without conditions');
+  assert(/Celiaquía/.test(describeAthlete({ profile, plan, history: [] })), 'context');
+});
+test('celiac + diabetes drops high-GI gluten-free pasta and bread', () => {
+  for (const day of DAYS) {
+    const text = buildMealPlan(plan, { date: day, conditions: ['celiac', 'diabetes'] }).flatMap((meal) => meal.items).join(' | ');
+    assert(!/fideos sin TACC|pan sin TACC/.test(text), text);
+  }
+  const celiacOnly = DAYS.map((day) => buildMealPlan(plan, { date: day, conditions: ['celiac'] }).flatMap((meal) => meal.items).join(' | ')).join(' | ');
+  assert(/sin TACC/.test(celiacOnly), 'celiac alone keeps gluten-free options');
+});
+test('dish names match the foods picked and lunch/dinner vary their carb', () => {
+  for (const conditions of [[], ['celiac', 'diabetes']]) {
+    for (const day of DAYS) {
+      const meals = buildMealPlan(plan, { date: day, conditions });
+      for (const meal of meals) {
+        const items = meal.items.join(' | ');
+        if (/Tostadas/.test(meal.name)) assert(/pan/.test(items), `${meal.name}: ${items}`);
+        if (/[Tt]ortillas/.test(meal.name)) assert(/tortillas/.test(items), `${meal.name}: ${items}`);
+      }
+      if (conditions.length === 0) {
+        const carb = (meal) => meal.items[0].replace(/^\d+ (g de )?/, '');
+        assert(carb(meals[1]) !== carb(meals[3]), `same carb ${day.toDateString()}: ${carb(meals[1])}`);
+      }
+    }
+  }
+});
+test('calorie targets under 1500 kcal always warn', () => {
+  const { offlineReply } = src('core/services/coach/offlineEngine.ts');
+  const { migrateProfile } = src('storage/index.ts');
+  const profile = migrateProfile({ ...profileForPlan });
+  assert(!/Atención/.test(offlineReply({ intent: 'nutrition' }, { profile, plan, history: [] }).text), 'normal plan warned');
+  const tiny = { ...plan, targetCalories: 1100, proteinGrams: 90, carbGrams: 100, fatGrams: 35 };
+  assert(/Atención.*muy baja/.test(offlineReply({ intent: 'nutrition' }, { profile, plan: tiny, history: [] }).text), 'tiny plan not warned');
 });
 
 console.log('\n7. Voice commands');

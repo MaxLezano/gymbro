@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import type {
   ActivityLevel,
+  DietaryCondition,
   ExperienceLevel,
   FitnessGoal,
-  FocusMuscle,
+  PriorityMuscle,
   Gender,
   GymType,
   HomeEquipment,
@@ -30,7 +31,8 @@ export interface ProfileDraft {
   gymType: GymType;
   daysPerWeek: number;
   sessionMinutes: number;
-  focusMuscle: FocusMuscle;
+  focusMuscles: PriorityMuscle[];
+  dietaryConditions: DietaryCondition[];
   email?: string;
   photoUrl?: string;
 }
@@ -73,7 +75,8 @@ function draftFromProfile(profile: UserProfile): ProfileDraft {
     gymType: profile.gymType ?? (profile.trainingLocation === 'home' ? 'home' : 'large_gym'),
     daysPerWeek: profile.daysPerWeek ?? 3,
     sessionMinutes: profile.sessionMinutes ?? 60,
-    focusMuscle: profile.focusMuscle ?? 'balanced',
+    focusMuscles: profile.focusMuscles ?? (profile.focusMuscle && profile.focusMuscle !== 'balanced' ? [profile.focusMuscle] : []),
+    dietaryConditions: profile.dietaryConditions ?? [],
     email: profile.email,
     photoUrl: profile.photoUrl,
   };
@@ -117,7 +120,9 @@ export function profileFromDraft(base: UserProfile, draft: ProfileDraft): UserPr
     gymType: draft.gymType,
     daysPerWeek: draft.daysPerWeek,
     sessionMinutes: draft.sessionMinutes,
-    focusMuscle: draft.focusMuscle,
+    focusMuscles: draft.focusMuscles,
+    focusMuscle: undefined,
+    dietaryConditions: draft.dietaryConditions,
     email: draft.email,
     photoUrl: draft.photoUrl,
   };

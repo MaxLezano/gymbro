@@ -223,7 +223,8 @@ export function calculateNutritionPlan(
 
   // Macronutrient Targets based on sports nutrition & lean mass
   // Protein: 2.0g - 2.2g per kg of total bodyweight (or up to 2.5g in aggressive fat loss)
-  const proteinMultiplier = profile.fitnessGoal === 'fat_loss' ? 2.2 : 2.0;
+  // Recomposition builds muscle at maintenance, so it needs the higher end too.
+  const proteinMultiplier = profile.fitnessGoal === 'fat_loss' || profile.fitnessGoal === 'maintenance' ? 2.2 : 2.0;
   const proteinGrams = Math.round(profile.weightKg * proteinMultiplier);
   const proteinCalories = proteinGrams * 4;
 

@@ -167,6 +167,10 @@ export function migrateProfile(stored: Partial<UserProfile>): UserProfile {
     name: stored.name ?? '',
     experience: stored.experience ?? 'intermediate',
     homeEquipment: stored.homeEquipment?.length ? stored.homeEquipment : DEFAULT_PROFILE.homeEquipment,
+    focusMuscles:
+      stored.focusMuscles ?? (stored.focusMuscle && stored.focusMuscle !== 'balanced' ? [stored.focusMuscle] : []),
+    // Added later: older profiles have no conditions.
+    dietaryConditions: Array.isArray(stored.dietaryConditions) ? stored.dietaryConditions : [],
   };
 }
 

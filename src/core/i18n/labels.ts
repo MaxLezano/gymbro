@@ -1,7 +1,9 @@
 import type {
   ActivityLevel,
+  DietaryCondition,
   ExperienceLevel,
   FitnessGoal,
+  PriorityMuscle,
   HomeEquipment,
   TrainingLocation,
 } from '../types';
@@ -133,6 +135,26 @@ export const GOAL_LABELS: Record<FitnessGoal, { title: string; short: string; de
   muscle_gain: { title: 'Ganar músculo', short: 'Superávit +250 kcal', description: 'Volumen limpio con poca grasa' },
   aggressive_bulk: { title: 'Volumen intenso', short: 'Superávit +500 kcal', description: 'Máxima ganancia de masa y fuerza' },
 };
+
+export const PRIORITY_LABELS: Record<PriorityMuscle, string> = {
+  chest: 'pecho',
+  back: 'espalda',
+  legs: 'piernas',
+  glutes: 'glúteos',
+  shoulders: 'hombros',
+  arms: 'brazos',
+  core: 'core (abdomen y zona media)',
+};
+
+export const DIETARY_CONDITION_LABELS: Record<DietaryCondition, { title: string; description: string }> = {
+  celiac: { title: 'Celiaquía', description: 'Menús sin gluten (sin TACC)' },
+  lactose_intolerance: { title: 'Intolerancia a la lactosa', description: 'Lácteos deslactosados o sin lactosa' },
+  diabetes: { title: 'Diabetes', description: 'Carbohidratos de bajo índice glucémico' },
+  hypertension: { title: 'Hipertensión', description: 'Bajo en sodio, sin sal agregada' },
+  high_cholesterol: { title: 'Colesterol alto', description: 'Proteínas magras, pescado y aceite de oliva' },
+};
+
+export const DIETARY_CONDITIONS = Object.keys(DIETARY_CONDITION_LABELS) as DietaryCondition[];
 
 export const ACTIVITY_LABELS: Record<ActivityLevel, { title: string; description: string }> = {
   sedentary: { title: 'Sedentario', description: 'Trabajo de escritorio, poco movimiento' },

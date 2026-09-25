@@ -23,6 +23,12 @@ export type GymType = 'large_gym' | 'basic_gym' | 'garage_gym' | 'home';
 /** Muscle group the athlete wants to prioritise inside a balanced program. */
 export type FocusMuscle = 'balanced' | 'chest' | 'back' | 'legs' | 'glutes' | 'shoulders' | 'arms' | 'core';
 
+/** A muscle group that gets extra volume; none selected means a balanced program. */
+export type PriorityMuscle = Exclude<FocusMuscle, 'balanced'>;
+
+/** Health conditions that change which foods the meal plan may suggest. */
+export type DietaryCondition = 'celiac' | 'lactose_intolerance' | 'diabetes' | 'hypertension' | 'high_cholesterol';
+
 /** Cover artwork bundled with the app (see src/data/covers.ts). */
 export type CoverKey =
   | 'push'
@@ -66,7 +72,12 @@ export interface UserProfile {
   gymType?: GymType;
   daysPerWeek?: number;
   sessionMinutes?: number;
+  /** Up to 3 muscle groups with extra volume; empty means balanced. */
+  focusMuscles?: PriorityMuscle[];
+  /** @deprecated Single-choice priority from older versions; migrated to focusMuscles. */
   focusMuscle?: FocusMuscle;
+  /** Dietary health conditions the meal plan must respect; missing or empty means none. */
+  dietaryConditions?: DietaryCondition[];
   // Optional Google account link (display only; data stays on device)
   email?: string;
   photoUrl?: string;

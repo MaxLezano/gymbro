@@ -3,7 +3,7 @@ import { EXERCISES, getExercise, type CatalogExercise } from '../../../data/cata
 import { fitsHomeEquipment } from '../../utils/equipment';
 import { generateRoutine, type TrainingFocus } from '../../utils/programGenerator';
 import { formatRelativeDate, personalRecords, sessionDate } from '../../utils/workout';
-import { ACTIVITY_LABELS, GOAL_LABELS, HOME_EQUIPMENT_OPTIONS, LEVEL_LABELS, LOCATION_LABELS, labelTarget } from '../../i18n/labels';
+import { ACTIVITY_LABELS, DIETARY_CONDITION_LABELS, GOAL_LABELS, HOME_EQUIPMENT_OPTIONS, LEVEL_LABELS, LOCATION_LABELS, PRIORITY_LABELS, labelTarget } from '../../i18n/labels';
 import type { ParsedQuery } from './intents';
 
 export interface CoachContext {
@@ -25,6 +25,8 @@ export function describeAthlete({ profile, plan }: CoachContext): string {
     `Calorías meta ${plan.targetCalories} kcal (TDEE ${plan.tdee}) | Proteína ${plan.proteinGrams} g, carbohidratos ${plan.carbGrams} g, grasas ${plan.fatGrams} g | Agua ${plan.waterLitersDaily} L`,
     `Peso atlético meta ${plan.idealWeightKg} kg`,
     `Entrena en: ${LOCATION_LABELS[profile.trainingLocation]}${profile.trainingLocation !== 'gym' ? ` | Equipo en casa: ${equipment}` : ''}`,
+    `Condiciones alimentarias: ${profile.dietaryConditions?.length ? profile.dietaryConditions.map((condition) => `${DIETARY_CONDITION_LABELS[condition].title} (${DIETARY_CONDITION_LABELS[condition].description.toLowerCase()})`).join(', ') : 'ninguna'}`,
+    `Músculos prioritarios: ${profile.focusMuscles?.length ? profile.focusMuscles.map((muscle) => PRIORITY_LABELS[muscle]).join(', ') : 'ninguno (programa equilibrado)'}`,
   ].join('\n');
 }
 
