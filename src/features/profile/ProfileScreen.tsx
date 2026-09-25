@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
+import { useNavigation, usePreventRemove } from 'expo-router/react-navigation';
 import { theme } from '../../core/theme';
 import { appActions, getAppState, selectAccount, selectCustomRoutines, selectProfile, useAppStore } from '../../state/appStore';
 import { Avatar } from '../../components/layout/HeaderActions';
@@ -33,6 +34,24 @@ export function ProfileScreen() {
   const program = programRoutines(useAppStore(selectCustomRoutines));
   const [linking, setLinking] = useState(false);
   const account = useAppStore(selectAccount);
+  const navigation = useNavigation();
+  const [initialDraft] = useState(() => JSON.stringify(draft));
+  const [leaving, setLeaving] = useState(false);
+  const dirty = !leaving && JSON.stringify(draft) !== initialDraft;
+
+  // Close button, Android back and the swipe gesture all pass through here.
+  usePreventRemove(dirty, ({ data }) =>
+    Alert.alert('¿Salir sin guardar?', 'Perderás los cambios de tu perfil.', [
+      { text: 'Seguir editando', style: 'cancel' },
+      { text: 'Salir', style: 'destructive', onPress: () => navigation.dispatch(data.action) },
+    ])
+  );
+
+  /** Navigate away on purpose (saved, signed out, deleted): lift the guard first. */
+  const leaveWith = (navigate: () => void) => {
+    setLeaving(true);
+    setTimeout(navigate, 0);
+  };
 
   const linkGoogle = async () => {
     setLinking(true);
@@ -66,15 +85,17 @@ export function ProfileScreen() {
     }
     FeedbackService.success();
     appActions.saveProfile(profileFromDraft(profile, draft));
-    router.back();
+    leaveWith(() => router.back());
   };
 
   const signOut = () => {
     const leave = async () => {
       if (account?.kind === 'google') await signOutFromGoogle();
       await appActions.signOut();
-      router.dismissAll();
-      router.replace('/login');
+      leaveWith(() => {
+        router.dismissAll();
+        router.replace('/login');
+      });
     };
     const hasWorkout = !!getAppState().activeWorkout;
     Alert.alert(
@@ -97,8 +118,10 @@ export function ProfileScreen() {
       return;
     }
     if (account.kind === 'google') await signOutFromGoogle();
-    router.dismissAll();
-    router.replace('/login');
+    leaveWith(() => {
+      router.dismissAll();
+      router.replace('/login');
+    });
   };
 
   const confirmDelete = () => {

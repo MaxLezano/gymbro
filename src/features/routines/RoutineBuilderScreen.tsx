@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigation, usePreventRemove } from 'expo-router/react-navigation';
 import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { theme } from '../../core/theme';
@@ -59,6 +60,18 @@ export function RoutineBuilderScreen({ editId, fromId }: { editId?: string; from
     initialRoutine(editId, fromId, profile.trainingLocation === 'home' ? 'home' : 'gym')
   );
   const isEditing = !!editId && !!findRoutine(editId)?.isCustom;
+  const [initial] = useState(() => JSON.stringify(draft));
+  const [saved, setSaved] = useState(false);
+  const dirty = !saved && JSON.stringify(draft) !== initial;
+  const navigation = useNavigation();
+
+  // Close button, Android back and the swipe gesture all pass through here.
+  usePreventRemove(dirty, ({ data }) =>
+    Alert.alert('¿Salir sin guardar?', 'Perderás los cambios de esta rutina.', [
+      { text: 'Seguir editando', style: 'cancel' },
+      { text: 'Salir', style: 'destructive', onPress: () => navigation.dispatch(data.action) },
+    ])
+  );
 
   const updateItem = (index: number, patch: Partial<RoutineExercise>) =>
     setDraft((prev) => ({ ...prev, exercises: prev.exercises.map((item, i) => (i === index ? { ...item, ...patch } : item)) }));
@@ -102,7 +115,9 @@ export function RoutineBuilderScreen({ editId, fromId }: { editId?: string; from
     }
     FeedbackService.success();
     appActions.upsertRoutine({ ...draft, title, estimatedMinutes: estimateMinutes(draft.exercises), isCustom: true });
-    router.back();
+    setSaved(true);
+    // Leave after the re-render that lifts the unsaved-changes guard.
+    setTimeout(() => router.back(), 0);
   };
 
   return (
