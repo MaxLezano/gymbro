@@ -5,15 +5,14 @@ import { createId } from '../../utils/workout';
 import type { CoachBlock, CoachMessage, MealPlanItem } from './types';
 
 /**
- * Free, key-less OpenAI-compatible endpoint (Pollinations). As of 2026 the
- * anonymous tier serves GPT-OSS 20B, which follows JSON output reliably.
+ * Our own Cloudflare Worker (see /worker): it holds the provider keys and chains
+ * free tiers (Gemini, then Workers AI), so provider changes never need a new APK.
  */
-const ENDPOINT = 'https://text.pollinations.ai/openai';
-const MODEL = 'openai';
+const ENDPOINT = 'https://gymbro-coach.gymbro-coach-worker.workers.dev/chat';
 const TIMEOUT_MS = 40_000;
 const RETRY_DELAY_MS = 1_200;
 
-export const COACH_MODEL_LABEL = 'GPT-OSS 20B';
+export const COACH_MODEL_LABEL = 'Gemini';
 
 interface RawBlock {
   type?: string;
@@ -187,31 +186,22 @@ export async function askOnline(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
-        body: JSON.stringify({
-          model: MODEL,
-          messages,
-          // No response_format: on the free tier it is billed (HTTP 402). The prompt asks for JSON and
-          // extractJson salvages it from any surrounding prose.
-          // GPT-OSS spends most of its budget reasoning; 'low' cut latency ~8x in tests.
-          reasoning_effort: 'low',
-          private: true,
-          referrer: 'gymbro-app',
-        }),
+        body: JSON.stringify({ messages }),
       });
 
     const attempt = async (): Promise<OnlineResult | null> => {
       let response = await request();
-      // The free tier returns sporadic 429/5xx under load: retry once.
-      if (response.status === 429 || response.status >= 500) {
+      // Transient 5xx: retry once. 429 is the proxy's per-device throttle, so it goes straight offline.
+      if (response.status >= 500) {
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
         response = await request();
       }
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const data = await response.json();
-      const content: string = data?.choices?.[0]?.message?.content ?? '';
-      // The provider answers quota/billing problems as a normal 200 "reply": never show it as the coach.
-      if (isProviderNotice(content, data?.usage?.total_tokens)) throw new Error('Provider notice');
+      const content: string = typeof data?.content === 'string' ? data.content : '';
+      // Providers may answer quota/billing problems as a normal "reply": never show it as the coach.
+      if (isProviderNotice(content)) throw new Error('Provider notice');
       const parsed = extractJson(content);
       if (!parsed?.text && !parsed?.blocks?.length) {
         // A genuine plain-text answer is still useful; broken JSON must never reach the UI.
