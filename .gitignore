@@ -49,3 +49,7 @@ scripts/media/out/
 
 # local agent tooling
 .atl/
+
+# Cloudflare Worker
+.wrangler/
+.dev.vars*
