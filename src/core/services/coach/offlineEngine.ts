@@ -47,7 +47,7 @@ export function offlineReply(query: ParsedQuery, context: CoachContext): Omit<Co
           `Te armé una sesión de **${FOCUS_LABELS[focus].toLowerCase()}** ${atHome ? 'con el equipo que tienes en casa' : 'para el gimnasio'}, ` +
           `de unos ${routine.estimatedMinutes} minutos.\n\n${prescriptionText(profile)}`,
         blocks: [{ type: 'routine', routine }],
-        suggestions: ['Hazla más corta', 'Cámbiala para hacerla en casa', '¿Cómo caliento antes?'],
+        suggestions: [query.minutes && query.minutes <= 30 ? 'Hazla más larga' : 'Hazla más corta', atHome ? 'Cámbiala para el gimnasio' : 'Cámbiala para hacerla en casa', '¿Cómo caliento antes?'],
       };
     }
 

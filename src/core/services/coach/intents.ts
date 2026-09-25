@@ -59,7 +59,7 @@ const EXERCISE_ALIASES: [RegExp, string][] = [
 
 /** Anything the coach is for: training, the body, food, recovery, habits and the app. */
 const DOMAIN =
-  /tecnica|consejo|progresion|mejorar|aprender|ensen|explica|entren|ejercici|gym|gimnasio|muscul|fuerza|pesa|kilo|\bkg\b|serie|repeti|descans|cardio|corr(er|o)|camin|trot|bici|nad(ar|o)|estir|calent|movilidad|flexib|lesion|dolor|agujeta|recuper|dorm|sueno|cansad|hidrat|agua|salud|energia|motiva|habito|constancia|disciplina|app|gymbro|perfil|programa|rutina|coach|entrenador|progres|record|nutri|dieta|kcal|panza|barriga|abdomen|cintura|adelgaz|bajar de peso|perder peso|engord|ganar peso|volumen|definic|tonific|postura|cuerpo|fisico|atleta|deport|objetivo|peso|altura|imc|grasa|masa|cuanto (tiempo|dias)|cuantas veces|frecuencia|semana|principiante|nivel|maquina|mancuerna|barra|banco|polea|banda|kettlebell|smith|prensa/;
+  /tecnica|consejo|progresion|mejorar|aprender|ensen|explica|entren|ejercici|gym|gimnasio|muscul|fuerza|pesa|kilo|\bkg\b|serie|repeti|descans|cardio|corr(er|o)|camin|trot|bici|nad(ar|o)|estir|calent|calient|movilidad|flexib|lesion|dolor|agujeta|recuper|dorm|sueno|cansad|hidrat|agua|salud|energia|motiva|habito|constancia|disciplina|app|gymbro|perfil|programa|rutina|coach|entrenador|progres|record|nutri|dieta|kcal|panza|barriga|abdomen|cintura|adelgaz|bajar de peso|perder peso|engord|ganar peso|volumen|definic|tonific|postura|cuerpo|fisico|atleta|deport|objetivo|\bmeta\b|vegetarian|vegan|en casa|peso|altura|imc|grasa|masa|cuanto (tiempo|dias)|cuantas veces|frecuencia|semana|principiante|nivel|maquina|mancuerna|barra|banco|polea|banda|kettlebell|smith|prensa/;
 /** Greetings and questions about the coach itself are always fine. */
 const SMALL_TALK =
   /^(hola|buenas|buen dia|hey|gracias|ok|dale|genial|perfecto)\b|quien eres|que (puedes|podes|sabes) hacer|como funcion|ayuda|como estas|(por que|porque) no (me )?(puedes|podes|respondes|contestas)|no me (respondes|contestas)|no entiendo/;
@@ -69,11 +69,21 @@ const SMALL_TALK =
  * geography, homework...). Checked before calling the model so the chat is
  * not used as a general-purpose AI.
  */
-export function isOffTopic(raw: string, query: ParsedQuery = parseQuery(raw)): boolean {
+export function isOffTopic(raw: string, query: ParsedQuery = parseQuery(raw), followUp = false): boolean {
   const text = normalizeText(raw);
   if (!text || query.intent !== 'general' || query.focus || query.exerciseId) return false;
+  // "Hazla más corta", "cámbiala", "otra": they refer to the previous answer.
+  if (followUp && FOLLOW_UP.test(text)) return false;
   return !DOMAIN.test(text) && !SMALL_TALK.test(text);
 }
+
+/** Short edits to the coach's previous answer, only meaningful inside a conversation. */
+const FOLLOW_UP =
+  /^(hazl[ao]|hacel[ao]|cambi(a|al[ao]|ala)|ponle|agrega(le)?|anade(le)?|saca(le)?|quita(le)?|otr[ao]s?|y (si|para)|mas |menos )|\bmas (corta|larga|facil|dificil|intensa|suave|liviana|pesada)\b/;
+
+/** "Más corta" / "más larga" for a routine, in minutes. */
+const SHORTER = /\bmas (corta|breve|rapida)\b|menos tiempo/;
+const LONGER = /\bmas larga\b|mas tiempo/;
 
 /** Words any real exercise name tends to contain (Spanish and English). */
 const GYM_VOCABULARY =
@@ -118,11 +128,15 @@ export function parseQuery(raw: string): ParsedQuery {
   const exerciseId = exerciseByCatalogName(text) ?? EXERCISE_ALIASES.find(([pattern]) => pattern.test(text))?.[1];
   const location = /en casa|sin gimnasio|sin gym|home/.test(text) ? 'home' : /gimnasio|\bgym\b/.test(text) ? 'gym' : undefined;
   const minutesMatch = text.match(/(\d{2,3})\s*(min|minutos)/);
-  const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : undefined;
+  const resized = SHORTER.test(text) ? 30 : LONGER.test(text) ? 75 : undefined;
+  const minutes = minutesMatch ? parseInt(minutesMatch[1], 10) : resized;
 
   let intent: CoachIntent = 'general';
   // "técnica de entrenamiento de..." asks how, not for a routine.
-  if (/rutina|programa|plan de entren|entrenamiento de|sesion|workout|split|arma(me)?\b|genera|dise[nñ]a/.test(text) && !/comida|dieta|menu|tecnica|como se hace/.test(text)) {
+  if (
+    resized !== undefined ||
+    (/rutina|programa|plan de entren|entrenamiento de|sesion|workout|split|arma(me)?\b|genera|dise[nñ]a/.test(text) && !/comida|dieta|menu|tecnica|como se hace/.test(text))
+  ) {
     intent = 'routine';
   } else if (
     // "como" alone also means "how", so only match it in eating phrases.

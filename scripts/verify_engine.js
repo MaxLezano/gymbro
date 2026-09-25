@@ -385,6 +385,31 @@ test('saved sessions show exercise names in the current language', () => {
   assert(logDisplayName({ exerciseId: '0043', exerciseName: 'Barbell Full Squat' }) === names['0043'], 'old English name');
   assert(logDisplayName({ exerciseId: 'custom_1', exerciseName: 'Mi ejercicio' }) === 'Mi ejercicio', 'custom exercise');
 });
+test('every suggestion the coach offers is answered, never refused as off-topic', () => {
+  const { offlineReply } = src('core/services/coach/offlineEngine.ts');
+  const { migrateProfile } = src('storage/index.ts');
+  const context = { profile: migrateProfile({ ...profileForPlan }), plan, history: [] };
+  const offered = new Set(['Armame una rutina para hoy', 'Armame un menú de un día que cumpla mis macros', '¿Cómo progreso en mis ejercicios?',
+    '¿Cómo está mi composición corporal?', 'Dame ejercicios de espalda para hacer en casa', '¿Cómo hago bien la sentadilla?',
+    'Armame una rutina de 30 minutos', '¿Cómo mejoro mi press de banca?', '¿Qué como antes de entrenar?']);
+  for (const intent of ['routine', 'exercise', 'exercises', 'nutrition', 'body', 'progress', 'general']) {
+    for (const location of ['home', 'gym']) {
+      try {
+        offlineReply({ intent, location, exerciseId: '0043' }, context).suggestions.forEach((s) => offered.add(s));
+      } catch {
+        // intents that need more query fields are covered by others
+      }
+    }
+  }
+  const refused = [...offered].filter((prompt) => isOffTopic(prompt, parseQuery(prompt), true));
+  assert(refused.length === 0, `refused: ${refused.join(' | ')}`);
+});
+test('"hazla más corta" asks for a shorter routine even without the model', () => {
+  const short = parseQuery('Hazla más corta');
+  assert(short.intent === 'routine' && short.minutes <= 30, JSON.stringify(short));
+  const long = parseQuery('hazla más larga');
+  assert(long.intent === 'routine' && long.minutes >= 60, JSON.stringify(long));
+});
 test('first-time loads never go below an empty barbell', () => {
   const { startingWeight } = src('core/utils/workout.ts');
   assert(startingWeight('barbell') === 20 && startingWeight('olympic barbell') === 20, 'barbell');

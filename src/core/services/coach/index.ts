@@ -121,7 +121,7 @@ export async function askCoach({ prompt, history, profile, workouts, signal, off
   }
 
   // Clearly unrelated questions never reach the model: the coach is not a general chatbot.
-  if (isOffTopic(prompt, query)) {
+  if (isOffTopic(prompt, query, history.length > 0)) {
     return {
       text: OFF_TOPIC_REPLY,
       blocks: [],
