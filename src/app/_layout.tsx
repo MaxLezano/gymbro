@@ -3,10 +3,10 @@ import { DarkTheme, SplashScreen, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { theme } from '../core/theme';
-import { appActions, selectHydrated, useAppStore } from '../state/appStore';
+import { selectHydrated, useAppStore } from '../state/appStore';
 import { WorkoutBackgroundServices } from '../features/workout/WorkoutBackgroundServices';
 import { BootScreen } from '../components/layout/BootScreen';
-import { afterFirstRender, preloadImages } from '../features/boot/preload';
+import { runBoot } from '../features/boot/preload';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -32,15 +32,8 @@ export default function RootLayout() {
     SystemUI.setBackgroundColorAsync(theme.colors.background).catch(() => undefined);
     // The boot screen repeats the native splash, so hiding it right away shows the progress bar.
     SplashScreen.hideAsync().catch(() => undefined);
-    const images = preloadImages().then(() => setBootProgress((value) => Math.max(value, 0.6)));
-    const data = appActions.hydrate().finally(() => setBootProgress((value) => Math.max(value, 0.5)));
-    Promise.allSettled([images, data])
-      // Every tab mounts behind the overlay (lazy: false), so its first open is instant.
-      .then(afterFirstRender)
-      .then(() => {
-        setBootProgress(1);
-        setTimeout(() => setBooting(false), 300);
-      });
+    // Every tab mounts behind the overlay (lazy: false), so its first open is instant.
+    runBoot(setBootProgress).finally(() => setTimeout(() => setBooting(false), 300));
   }, []);
 
   return (

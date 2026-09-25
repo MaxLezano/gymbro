@@ -1,5 +1,5 @@
 import type { UserProfile } from '../../types';
-import { EXERCISES, getExercise } from '../../../data/catalog';
+import { getExercises, getExercise } from '../../../data/catalog';
 import { fitsHomeEquipment } from '../../utils/equipment';
 import { FOCUS_LABELS, generateRoutine, suggestFocus } from '../../utils/programGenerator';
 import { estimateOneRepMax, personalRecords } from '../../utils/workout';
@@ -71,7 +71,7 @@ export function offlineReply(query: ParsedQuery, context: CoachContext): Omit<Co
       const routine = query.focus ? generateRoutine({ focus: query.focus, profile, location: atHome ? 'home' : 'gym', maxExercises: 6 }) : null;
       let ids = routine?.exercises.map((item) => item.exerciseId) ?? [];
       if (targetSet) {
-        ids = EXERCISES.filter(
+        ids = getExercises().filter(
           (exercise) =>
             targetSet.includes(exercise.target) &&
             exercise.id !== base?.id &&

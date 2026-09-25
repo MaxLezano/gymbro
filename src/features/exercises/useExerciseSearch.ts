@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo } from 'react';
-import { EXERCISES, getExercise, normalizeText, type CatalogExercise } from '../../data/catalog';
+import { getExercise, getExercises, normalizeText, type CatalogExercise } from '../../data/catalog';
 import { fitsHomeEquipment } from '../../core/utils/equipment';
 import type { HomeEquipment } from '../../core/types';
 
@@ -33,12 +33,15 @@ const EQUIPMENT_RANK: Record<string, number> = {
  * Compares pre-normalized keys instead of localeCompare: on Hermes/Android every localeCompare
  * call goes through the platform collator, and ~14k of them froze the first catalog open for 30+ s.
  */
-const ALPHABETICAL = EXERCISES.map((exercise) => ({ exercise, key: normalizeText(exercise.displayName) }))
-  .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
-  .map(({ exercise }) => exercise);
+let alphabetical: CatalogExercise[] | null = null;
+const browsingOrder = () =>
+  (alphabetical ??= getExercises()
+    .map((exercise) => ({ exercise, key: normalizeText(exercise.displayName) }))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
+    .map(({ exercise }) => exercise));
 
 /** First screen of the catalog in browsing order: what the boot screen preloads. */
-export const firstCatalogPage = (count: number) => ALPHABETICAL.slice(0, count);
+export const firstCatalogPage = (count: number) => browsingOrder().slice(0, count);
 
 const byRelevance = (a: CatalogExercise, b: CatalogExercise) =>
   (EQUIPMENT_RANK[a.equipment] ?? 3) - (EQUIPMENT_RANK[b.equipment] ?? 3) || a.name.length - b.name.length;
@@ -71,7 +74,7 @@ export function useExerciseSearch({ query, bodyPart, onlyMyEquipment, homeEquipm
         .map((id) => getExercise(id))
         .filter((exercise): exercise is CatalogExercise => !!exercise && terms.every((term) => exercise.searchText.includes(term)));
     }
-    const matches = ALPHABETICAL.filter((exercise) => {
+    const matches = browsingOrder().filter((exercise) => {
       if (bodyPart !== 'all' && exercise.bodyPart !== bodyPart) return false;
       if (onlyMyEquipment && !fitsHomeEquipment(exercise, homeEquipment)) return false;
       return terms.every((term) => exercise.searchText.includes(term));

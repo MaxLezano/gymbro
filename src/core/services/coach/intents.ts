@@ -1,4 +1,4 @@
-import { EXERCISES, normalizeText } from '../../../data/catalog';
+import { getExercises, normalizeText } from '../../../data/catalog';
 import type { HomeEquipment } from '../../types';
 import type { TrainingFocus } from '../../utils/programGenerator';
 
@@ -131,7 +131,7 @@ export const OFF_TOPIC_REPLY =
 let catalogNames: { name: string; id: string }[] | null = null;
 function exerciseByCatalogName(text: string): string | undefined {
   // Both the translated and the original English name, so either one is recognized.
-  catalogNames ??= EXERCISES.flatMap((exercise) => [
+  catalogNames ??= getExercises().flatMap((exercise) => [
     { name: normalizeText(exercise.displayName), id: exercise.id },
     { name: normalizeText(exercise.name), id: exercise.id },
   ])

@@ -5,7 +5,7 @@ import { theme } from '../../core/theme';
 import { AppText, Chip, Divider, EmptyState, ScreenHeader } from '../../components/ui';
 import { TabScreen } from '../../components/layout/TabScreen';
 import { HeaderActions } from '../../components/layout/HeaderActions';
-import { EXERCISE_COUNT, type CatalogExercise } from '../../data/catalog';
+import { exerciseCount, type CatalogExercise } from '../../data/catalog';
 import { appActions, selectProfile, useAppStore } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
 import { EXERCISE_ROW_HEIGHT, ExerciseRow } from './ExerciseRow';
@@ -50,7 +50,7 @@ export function ExerciseCatalogScreen() {
 
   return (
     <TabScreen>
-      <ScreenHeader title="Ejercicios" subtitle={`${EXERCISE_COUNT.toLocaleString('es-ES')} movimientos con técnica guiada`} right={<HeaderActions />} />
+      <ScreenHeader title="Ejercicios" subtitle={`${exerciseCount().toLocaleString('es-ES')} movimientos con técnica guiada`} right={<HeaderActions />} />
       <SearchField value={query} onChangeText={setQuery} placeholder="Buscar por nombre, músculo o equipo" />
       <View>
         <BodyPartFilterRow

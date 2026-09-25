@@ -1,5 +1,5 @@
 import type { CoverKey, ExperienceLevel, FitnessGoal, PriorityMuscle, Routine, RoutineExercise, UserProfile } from '../types';
-import { EXERCISES, getExercise, type CatalogExercise } from '../../data/catalog';
+import { getExercises, getExercise, type CatalogExercise } from '../../data/catalog';
 import { fitsHomeEquipment } from './equipment';
 import { createId } from './workout';
 
@@ -164,7 +164,7 @@ export function generateRoutine({ focus, profile, location, maxExercises, title,
         (exercise): exercise is CatalogExercise =>
           !!exercise && !chosen.has(exercise.id) && !avoid?.has(exercise.id) && isAvailable(exercise)
       ) ??
-    EXERCISES.find(
+    getExercises().find(
       (exercise) =>
         slot.targets.includes(exercise.target) &&
         !chosen.has(exercise.id) &&

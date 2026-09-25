@@ -85,7 +85,8 @@ const near = (actual, expected, tolerance, label) =>
 
 // --- Modules under test ------------------------------------------------------
 const { calculateNutritionPlan, calculateBodyFatNavy } = src('core/utils/nutrition.ts');
-const { EXERCISES, getExercise } = src('data/catalog.ts');
+const { getExercises, getExercise } = src('data/catalog.ts');
+const EXERCISES = getExercises();
 const { estimateOneRepMax, parseTargetReps, weekStreak, pluralize, suggestLoad, formatRest } = src('core/utils/workout.ts');
 const { fitsHomeEquipment, requiredHomeEquipment } = src('core/utils/equipment.ts');
 const { generateRoutine, FOCUS_LABELS } = src('core/utils/programGenerator.ts');

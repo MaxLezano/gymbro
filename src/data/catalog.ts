@@ -1,4 +1,3 @@
-import rawExercises from './exercises.json';
 import type { Exercise } from '../core/types';
 import {
   exerciseName,
@@ -21,8 +20,8 @@ export const normalizeText = (value: string) =>
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '');
 
-/** Built once at module load: O(1) lookup and pre-normalized search text. */
-export const EXERCISES: CatalogExercise[] = (rawExercises as Exercise[]).map((exercise) => {
+function buildExercises(raw: Exercise[]): CatalogExercise[] {
+  return raw.map((exercise) => {
   const displayName = exerciseName(exercise.id, exercise.name);
   return {
     ...exercise,
@@ -41,10 +40,27 @@ export const EXERCISES: CatalogExercise[] = (rawExercises as Exercise[]).map((ex
       ].join(' ')
     ),
   };
-});
+  });
+}
 
-const EXERCISE_BY_ID = new Map(EXERCISES.map((exercise) => [exercise.id, exercise]));
+let catalog: { list: CatalogExercise[]; byId: Map<string, CatalogExercise> } | null = null;
 
-export const getExercise = (id: string): CatalogExercise | undefined => EXERCISE_BY_ID.get(id);
+/**
+ * Built on first use, not at import: the 1.2 MB dataset used to be parsed before the app
+ * could draw anything. The boot screen calls this while its progress bar is visible.
+ */
+function loadCatalog() {
+  if (!catalog) {
+    // Deferred require on purpose: see above.
+    const list = buildExercises(require('./exercises.json') as Exercise[]);
+    catalog = { list, byId: new Map(list.map((exercise) => [exercise.id, exercise])) };
+  }
+  return catalog;
+}
 
-export const EXERCISE_COUNT = EXERCISES.length;
+/** The whole catalog (1.324 exercises), in dataset order. */
+export const getExercises = (): CatalogExercise[] => loadCatalog().list;
+
+export const getExercise = (id: string): CatalogExercise | undefined => loadCatalog().byId.get(id);
+
+export const exerciseCount = (): number => loadCatalog().list.length;

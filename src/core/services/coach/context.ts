@@ -1,5 +1,5 @@
 import type { NutritionMetrics, UserProfile, WorkoutSession } from '../../types';
-import { EXERCISES, getExercise, type CatalogExercise } from '../../../data/catalog';
+import { getExercises, getExercise, type CatalogExercise } from '../../../data/catalog';
 import { fitsHomeEquipment } from '../../utils/equipment';
 import { generateRoutine, type TrainingFocus } from '../../utils/programGenerator';
 import { formatRelativeDate, logDisplayName, personalRecords, sessionDate } from '../../utils/workout';
@@ -75,7 +75,7 @@ export function selectCandidates(query: ParsedQuery, context: CoachContext, limi
 
   // Widen with same-target alternatives so the model has real choices.
   const targets = new Set([...picked.values()].map((exercise) => exercise.target));
-  for (const exercise of EXERCISES) {
+  for (const exercise of getExercises()) {
     if (picked.size >= limit) break;
     if (targets.has(exercise.target) && !/v\. \d|\(|pov/.test(exercise.name)) add(exercise);
   }
