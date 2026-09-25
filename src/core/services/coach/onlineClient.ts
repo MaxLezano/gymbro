@@ -181,7 +181,8 @@ export async function askOnline(
         body: JSON.stringify({
           model: MODEL,
           messages,
-          response_format: { type: 'json_object' },
+          // No response_format: on the free tier it is billed (HTTP 402). The prompt asks for JSON and
+          // extractJson salvages it from any surrounding prose.
           // GPT-OSS spends most of its budget reasoning; 'low' cut latency ~8x in tests.
           reasoning_effort: 'low',
           private: true,
