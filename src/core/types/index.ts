@@ -96,6 +96,8 @@ export interface UserProfile {
   weighInReminder?: boolean;
   /** Weekly training reminders: expo weekdays (1 = Sunday) and local time. */
   trainingReminder?: { days: number[]; hour: number; minute: number };
+  /** When the athlete dismissed the deload suggestion (ms): it stays hidden for a few weeks. */
+  deloadSnoozedAt?: number;
   // Optional Google account link (display only; data stays on device)
   email?: string;
   photoUrl?: string;

@@ -23,4 +23,4 @@ Tick each item once it is done **and** checked on the emulator.
 - [x] Automatic warm-up sets for the first heavy lift of the day (checklist, never logged as volume).
 - [x] Plate calculator: plates per side for barbell lifts (coach and list views).
 - [x] Training reminders on the chosen days and time (defaults from the program frequency).
-- [ ] Suggested deload week when progress stalls.
+- [x] Suggested deload week when progress stalls (regular training, most lifts flat for 3 weeks; snooze 4 weeks).

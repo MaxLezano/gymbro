@@ -25,6 +25,8 @@ import { TabScreen } from '../../components/layout/TabScreen';
 import { HeaderActions } from '../../components/layout/HeaderActions';
 import { BarChart, Sparkline } from './Charts';
 import { BodyWeightCard } from './BodyWeightCard';
+import { DeloadCard } from './DeloadCard';
+import { suggestDeload } from '../../core/utils/deload';
 
 /** Weekly hard-set landmarks per muscle group (Schoenfeld 2017; Israetel MEV-MRV). */
 const WEEKLY_SET_TARGET = { min: 10, max: 20 };
@@ -106,6 +108,9 @@ export function ProgressScreen() {
     };
   }, [history]);
 
+  const snoozedAt = useAppStore((s) => s.profile.deloadSnoozedAt);
+  const deload = useMemo(() => suggestDeload(history, { snoozedAt }), [history, snoozedAt]);
+
   const visibleSessions = showAll ? history : history.slice(0, 5);
 
   return (
@@ -128,6 +133,7 @@ export function ProgressScreen() {
           />
         ) : (
           <View style={styles.body}>
+            {deload && <DeloadCard suggestion={deload} />}
             <View style={styles.statsRow}>
               <StatTile label="Racha" value={data.streak} unit={data.streak === 1 ? 'semana' : 'semanas'} icon="flame-outline" />
               <StatTile label="Esta semana" value={data.sessionsThisWeek} unit={data.sessionsThisWeek === 1 ? 'sesión' : 'sesiones'} icon="calendar-outline" />

@@ -726,6 +726,33 @@ console.log('\n8. Accounts (per-device data spaces)');
     assert(odd.perSide.join() === '20' && odd.leftover === 1, JSON.stringify(odd));
     assert(usesPlates('barbell') && !usesPlates('dumbbell') && !usesPlates('ez barbell'), 'equipment');
   });
+  test('deload is suggested only when regular training stops progressing', () => {
+    const { suggestDeload, DELOAD_SNOOZE_MS } = src('core/utils/deload.ts');
+    const DAY = 24 * 60 * 60 * 1000;
+    const now = new Date(2026, 5, 26, 12).getTime();
+    // Two sessions a week for 8 weeks; `kg(week)` gives the bench and row load of that week.
+    const history = (kg) =>
+      Array.from({ length: 16 }, (_, i) => {
+        const week = Math.floor(i / 2);
+        const at = now - (55 - i * 3.5) * DAY;
+        const set = (w) => [{ id: 'x', setNumber: 1, type: 'normal', weightKg: w, reps: 5, completed: true }];
+        return {
+          id: `s${i}`, title: 'A', startedAt: at, completedAt: at, durationSeconds: 3600, totalVolumeKg: 0, status: 'completed',
+          exercises: [
+            { exerciseId: '0025', exerciseName: 'Press de banca', sets: set(kg(week)) },
+            { exerciseId: '0027', exerciseName: 'Remo', sets: set(kg(week) - 10) },
+          ],
+        };
+      });
+    const progressing = history((week) => 60 + week * 2.5);
+    const stalled = history((week) => (week < 3 ? 60 + week * 2.5 : 65));
+    assert(suggestDeload(progressing, { now }) === null, 'progressing lifter told to deload');
+    const suggestion = suggestDeload(stalled, { now });
+    assert(suggestion && suggestion.stalledLifts.length === 2, JSON.stringify(suggestion));
+    assert(suggestDeload(stalled, { now, snoozedAt: now - DAY }) === null, 'snooze ignored');
+    assert(suggestDeload(stalled, { now, snoozedAt: now - DELOAD_SNOOZE_MS - DAY }) !== null, 'snooze never ends');
+    assert(suggestDeload(stalled.slice(-4), { now }) === null, 'irregular training');
+  });
   test('every focus named in a request is kept', () => {
     const focuses = parseQuery('Armame una rutina de espalda y biceps').focuses;
     assert(JSON.stringify(focuses) === JSON.stringify(['back', 'arms']), `focuses: ${focuses}`);
