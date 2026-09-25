@@ -9,7 +9,7 @@ import { askOnline } from './onlineClient';
 import type { CoachMessage, CoachReply } from './types';
 
 export type { CoachBlock, CoachMessage, CoachReply, MealPlanItem } from './types';
-export { COACH_MODEL_LABEL } from './onlineClient';
+export { COACH_PROVIDER_LABELS } from './onlineClient';
 
 const INTENT_HINT: Record<ParsedQuery['intent'], string> = {
   routine: '', // built per request by routineHint: it depends on the session length

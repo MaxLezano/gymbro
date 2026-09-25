@@ -12,7 +12,7 @@ Tick each item once it is done **and** checked on the emulator.
 
 ## 2. Details
 
-- [ ] Coach header shows the provider that actually answered (Gemini or the fallback).
+- [x] Coach header shows the provider that actually answered (Gemini or the fallback).
 - [ ] 75 and 90 min programs get more volume than 60 min.
 - [ ] More exercise images available offline (only 16 are preloaded).
 

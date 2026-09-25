@@ -648,6 +648,21 @@ console.log('\n8. Accounts (per-device data spaces)');
     const keys = all.map((exercise) => normalizeText(exercise.displayName));
     assert(keys.every((key, i) => i === 0 || keys[i - 1] <= key), 'sorted');
   });
+  await testAsync('the coach reports which model answered (fallback included)', async () => {
+    const { askCoach } = src('core/services/coach/index.ts');
+    const { migrateProfile } = src('storage/index.ts');
+    const realFetch = globalThis.fetch;
+    const reply = (provider) => async () => ({ ok: true, status: 200, json: async () => ({ content: '{"text":"Descansa 2 minutos entre series pesadas."}', provider }) });
+    try {
+      const profile = migrateProfile({ ...profileForPlan });
+      globalThis.fetch = reply('workers-ai');
+      assert((await askCoach({ prompt: '¿Cuánto descanso entre series?', history: [], profile, workouts: [] })).provider === 'workers-ai', 'fallback');
+      globalThis.fetch = reply('something-else');
+      assert((await askCoach({ prompt: '¿Cuánto descanso entre series?', history: [], profile, workouts: [] })).provider === undefined, 'unknown provider ignored');
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
   test('every focus named in a request is kept', () => {
     const focuses = parseQuery('Armame una rutina de espalda y biceps').focuses;
     assert(JSON.stringify(focuses) === JSON.stringify(['back', 'arms']), `focuses: ${focuses}`);

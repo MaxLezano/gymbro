@@ -12,7 +12,7 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
-import { askCoach, COACH_MODEL_LABEL, type CoachMessage } from '../../core/services/coach';
+import { askCoach, COACH_PROVIDER_LABELS, type CoachMessage } from '../../core/services/coach';
 import { coachAiDegraded } from '../../core/services/coach/status';
 import { calculateNutritionPlan } from '../../core/utils/nutrition';
 import { createId } from '../../core/utils/workout';
@@ -134,6 +134,7 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
             blocks: reply.blocks,
             suggestions: reply.suggestions,
             source: reply.source,
+            provider: reply.provider,
             createdAt: Date.now(),
           },
         ]);
@@ -182,6 +183,8 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
   const reversed = useMemo(() => [...messages].reverse(), [messages]);
   const lastAssistantId = [...messages].reverse().find((message) => message.role === 'assistant')?.id;
   const aiDegraded = useMemo(() => coachAiDegraded(messages.map((message) => message.source)), [messages]);
+  // The model that actually answered last: the proxy may have fallen back from Gemini.
+  const provider = [...messages].reverse().find((message) => message.provider)?.provider ?? 'gemini';
 
   const renderMessage = ({ item }: { item: CoachMessage }) => {
     if (item.role === 'user') {
@@ -240,7 +243,7 @@ export function CoachScreen({ initialPrompt }: { initialPrompt?: string }) {
           <View style={styles.status}>
             <View style={[styles.statusDot, aiDegraded && styles.statusOffline]} />
             <AppText variant="caption" color="textMuted">
-              {aiDegraded ? 'IA no disponible ahora · respuestas básicas' : `IA gratis · ${COACH_MODEL_LABEL}`}
+              {aiDegraded ? 'IA no disponible ahora · respuestas básicas' : `IA gratis · ${COACH_PROVIDER_LABELS[provider]}`}
             </AppText>
           </View>
         </View>

@@ -23,7 +23,11 @@ export interface CoachReply {
   suggestions: string[];
   /** 'scope' = answered locally because the question is outside the coach's job. */
   source: 'online' | 'offline' | 'scope';
+  /** Which model answered an online reply (the proxy falls back between free tiers). */
+  provider?: CoachProvider;
 }
+
+export type CoachProvider = 'gemini' | 'workers-ai';
 
 export interface CoachMessage {
   id: string;
@@ -32,5 +36,6 @@ export interface CoachMessage {
   blocks?: CoachBlock[];
   suggestions?: string[];
   source?: CoachReply['source'];
+  provider?: CoachProvider;
   createdAt: number;
 }

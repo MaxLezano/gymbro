@@ -2,7 +2,7 @@ import type { Routine } from '../../types';
 import { getExercise } from '../../../data/catalog';
 import { estimateMinutes } from '../../utils/programGenerator';
 import { createId } from '../../utils/workout';
-import type { CoachBlock, CoachMessage, MealPlanItem } from './types';
+import type { CoachBlock, CoachMessage, CoachProvider, MealPlanItem } from './types';
 
 /**
  * Our own Cloudflare Worker (see /worker): it holds the provider keys and chains
@@ -14,7 +14,11 @@ const APP_KEY = process.env.EXPO_PUBLIC_COACH_KEY ?? '';
 const TIMEOUT_MS = 40_000;
 const RETRY_DELAY_MS = 1_200;
 
-export const COACH_MODEL_LABEL = 'Gemini';
+/** Header label per provider; before any reply the primary one is shown. */
+export const COACH_PROVIDER_LABELS: Record<CoachProvider, string> = { gemini: 'Gemini', 'workers-ai': 'Llama (respaldo)' };
+
+const asProvider = (value: unknown): CoachProvider | undefined =>
+  value === 'gemini' || value === 'workers-ai' ? value : undefined;
 
 interface RawBlock {
   type?: string;
@@ -36,6 +40,7 @@ export interface OnlineResult {
   text: string;
   blocks: CoachBlock[];
   suggestions: string[];
+  provider?: CoachProvider;
 }
 
 const clamp = (value: unknown, min: number, max: number, fallback: number) => {
@@ -208,12 +213,13 @@ export async function askOnline(
       if (!parsed?.text && !parsed?.blocks?.length) {
         // A genuine plain-text answer is still useful; broken JSON must never reach the UI.
         const plain = content.trim();
-        return plain.length > 20 && !plain.includes('{') ? { text: cleanText(plain, 2000), blocks: [], suggestions: [] } : null;
+        return plain.length > 20 && !plain.includes('{') ? { text: cleanText(plain, 2000), blocks: [], suggestions: [], provider: asProvider(data?.provider) } : null;
       }
       return {
         text: cleanText(parsed.text, 2000),
         blocks: normalizeBlocks(parsed.blocks, location),
         suggestions: (parsed.suggestions ?? []).map((item) => cleanText(item, 60)).filter(Boolean).slice(0, 3),
+        provider: asProvider(data?.provider),
       };
     };
 
