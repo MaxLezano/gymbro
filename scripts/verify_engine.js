@@ -290,12 +290,26 @@ test('meal plan: swapping one meal changes only that meal, and stays stable', ()
   const lunches = new Set([0, 1, 2, 3].map((n) => buildMealPlan(plan, { date: '2026-03-10', swaps: { 1: n } })[1].name));
   assert(lunches.size >= 3, `only ${lunches.size} distinct lunches in 4 swaps`);
 });
+test('meal plan: another snack does not repeat the breakfast foods when it can avoid it', () => {
+  const mains = /huevo|clara|pan integral|tortillas|yogur|queso|proteína en polvo|avena/;
+  const foodsOf = (meal) => new Set(meal.items.filter((item) => mains.test(item)).map((item) => item.replace(/^[\d\s]+(g de |ml de )?/, '')));
+  for (const day of DAYS.slice(0, 10)) {
+    const breakfast = foodsOf(buildMealPlan(plan, { date: day })[0]);
+    const snack = foodsOf(buildMealPlan(plan, { date: day, swaps: { 2: 1 } })[2]);
+    const shared = [...snack].filter((food) => breakfast.has(food));
+    assert(shared.length === 0, `${day.toDateString()}: snack repeats ${shared}`);
+  }
+});
 test('meal plan: cooks with what is at home, and says when it cannot', () => {
   const meals = buildMealPlan(plan, { date: '2026-03-10', pantry: ['chicken', 'whiteRice'] });
   const plates = [meals[1], meals[3]];
   assert(plates.every((meal) => meal.fromPantry && meal.name.includes('Arroz blanco con pechuga de pollo a la plancha')), plates.map((m) => m.name).join(' / '));
   assert(meals[0].fromPantry === false, 'breakfast cannot be made from chicken and rice');
   assert(buildMealPlan(plan, { date: '2026-03-10' })[0].fromPantry === undefined, 'no pantry, no flag');
+  // "Another option" with a small pantry keeps the only dish it can make instead of leaving the pantry.
+  const pantry = ['chicken', 'whiteRice', 'eggs', 'wholeBread'];
+  const swappedSnack = buildMealPlan(plan, { date: '2026-03-10', pantry, swaps: { 2: 1 } })[2];
+  assert(swappedSnack.fromPantry === true, `snack left the pantry: ${swappedSnack.name}`);
 });
 test('meal plan: lunch and dinner are named after the plate', () => {
   const meals = buildMealPlan(plan, { date: '2026-03-10' });

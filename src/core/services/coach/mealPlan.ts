@@ -535,10 +535,21 @@ function planOne(
   const fresh = meal.templates.filter((template) => template !== skip);
   const templates = fresh.length ? fresh : meal.templates;
   if (context.pantry) {
-    for (const template of shuffled(templates, random)) {
+    // With few ingredients the dish shown before may be the only one possible: better repeated than not from the pantry.
+    const pantryOrder = [...shuffled(templates, random), ...(skip && templates !== meal.templates ? [skip] : [])];
+    for (const template of pantryOrder) {
       const planned = planMeal(template, target, context.conditions, random, context.bounds, avoid, context.pantry);
       if (planned) return { template, ...planned, fromPantry: true };
     }
+  }
+  if (skip) {
+    // "Another option": of the dishes that work, the one sharing the fewest foods with the rest of the day.
+    const options = shuffled(templates, random)
+      .map((template) => ({ template, planned: planMeal(template, target, context.conditions, random, context.bounds, avoid) }))
+      .filter((option): option is { template: Template; planned: NonNullable<ReturnType<typeof planMeal>> } => !!option.planned);
+    const repeats = (option: (typeof options)[number]) => option.planned.portions.filter((portion) => avoid.foods.has(portion.food.id)).length;
+    const best = options.sort((a, b) => repeats(a) - repeats(b))[0];
+    if (best) return { template: best.template, ...best.planned, fromPantry: false };
   }
   let template = pick(templates, random);
   let planned = planMeal(template, target, context.conditions, random, context.bounds, avoid);

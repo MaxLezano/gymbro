@@ -42,6 +42,10 @@ export function TodayMenuCard({ plan, conditions }: { plan: NutritionMetrics; co
   const lowCalorie = lowCalorieNote(plan.targetCalories);
   const disclaimer = medicalDisclaimerFor(conditions);
 
+  // A few ingredients rarely reach the day's calories: say how far off and what closes the gap.
+  const dayKcal = meals.reduce((sum, meal) => sum + (meal.kcal ?? 0), 0);
+  const pantryShort = pantryOn && dayKcal < plan.targetCalories * 0.9;
+
   const setSwap = (index: number, count: number) => {
     const meals = { ...(swaps ?? {}), [index]: count };
     appActions.patchProfile({ menuSwaps: { date: dateKey, meals } });
@@ -78,6 +82,15 @@ export function TodayMenuCard({ plan, conditions }: { plan: NutritionMetrics; co
           </Pressable>
         )}
       </View>
+      {pantryShort && (
+        <View style={styles.note}>
+          <Ionicons name="information-circle-outline" size={14} color={theme.colors.primary} />
+          <AppText variant="caption" color="textSecondary" style={styles.flex}>
+            Con estos ingredientes llegas a ~{dayKcal.toLocaleString('es-ES')} de {plan.targetCalories.toLocaleString('es-ES')} kcal. Suma una grasa (aceite, palta,
+            frutos secos) o fruta para completar.
+          </AppText>
+        </View>
+      )}
 
       {meals.map((meal, index) => {
         const expanded = open === index;
