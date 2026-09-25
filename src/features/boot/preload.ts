@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { InteractionManager } from 'react-native';
 import { appActions } from '../../state/appStore';
 import { firstCatalogPage } from '../exercises/useExerciseSearch';
+import { warmMediaCache } from './mediaCache';
 
 const IMAGE_BUDGET_MS = 2_500;
 
@@ -50,4 +51,7 @@ export async function runBoot(onProgress: (progress: number) => void): Promise<v
   // Account data is in: the right first screen (login, onboarding or tabs) mounts behind the bar.
   await afterFirstRender();
   onProgress(1);
+
+  // After boot, never blocking it: offline copies of the images the athlete will need.
+  warmMediaCache().catch(() => undefined);
 }
