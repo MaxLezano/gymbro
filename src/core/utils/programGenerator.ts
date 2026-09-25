@@ -206,8 +206,12 @@ export function generateRoutine({ focus, profile, location, maxExercises, title,
 }
 
 /** ~40 s per set of work + prescribed rest + 5 min warm-up, rounded to 5. */
+/**
+ * Realistic session length: ~45 s per working set plus its rest, ~90 s to set up
+ * each exercise (plates, bench, warm-up set) and 5 min of general warm-up.
+ */
 export function estimateMinutes(exercises: RoutineExercise[]): number {
-  const seconds = exercises.reduce((sum, item) => sum + item.targetSets * (40 + item.restSeconds), 0);
+  const seconds = exercises.reduce((sum, item) => sum + item.targetSets * (45 + item.restSeconds) + 90, 0);
   return Math.max(10, Math.round((seconds / 60 + 5) / 5) * 5);
 }
 

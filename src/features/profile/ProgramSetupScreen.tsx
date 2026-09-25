@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { theme } from '../../core/theme';
-import { generateWeeklyProgram, type WeeklyProgram } from '../../core/utils/programGenerator';
+import { estimateMinutes, generateWeeklyProgram, type WeeklyProgram } from '../../core/utils/programGenerator';
 import { programRoutines } from '../../core/utils/program';
 import { appActions, selectCustomRoutines, selectProfile, useAppStore } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
@@ -58,7 +58,9 @@ export function ProgramSetupScreen() {
             <View style={styles.header}>
               <AppText variant="title">{preview.title}</AppText>
               <AppText variant="body" color="textSecondary">
-                Sesiones de ~{draft.sessionMinutes} min. Si no te convence, cambia las opciones y vuelve a generarlo.
+                {/* The generated sessions' own estimate, so the header never contradicts the cards. */}
+                Sesiones de ~{Math.round(preview.routines.reduce((sum, routine) => sum + estimateMinutes(routine.exercises), 0) / preview.routines.length)} min. Si no te
+                convence, cambia las opciones y vuelve a generarlo.
               </AppText>
             </View>
             <ProgramPreview routines={preview.routines} />
@@ -87,7 +89,7 @@ export function ProgramSetupScreen() {
             <Button label="Guardar programa" icon="checkmark" size="lg" style={styles.flex} onPress={save} />
           </>
         ) : (
-          <Button label="Generar programa" icon="sparkles" size="lg" fullWidth onPress={generate} />
+          <Button label="Generar programa" icon="sparkles" size="lg" style={styles.flex} onPress={generate} />
         )}
       </View>
     </StackScreen>

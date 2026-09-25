@@ -7,6 +7,7 @@ import type { Routine } from '../../core/types';
 import { coverForRoutine } from '../../data/covers';
 import { getExercise } from '../../data/catalog';
 import { AppText } from '../../components/ui';
+import { estimateMinutes } from '../../core/utils/programGenerator';
 
 /** Compact list of the days of a weekly program, with cover art. */
 export function ProgramPreview({
@@ -45,7 +46,7 @@ export function ProgramPreview({
                 {routine.title}
               </AppText>
               <AppText variant="caption" color="textMuted" numberOfLines={1}>
-                {routine.exercises.length} ejercicios · ~{routine.estimatedMinutes} min · {names}
+                {routine.exercises.length} ejercicios · ~{estimateMinutes(routine.exercises)} min · {names}
               </AppText>
             </View>
             {onPressDay && <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />}

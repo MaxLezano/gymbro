@@ -13,6 +13,7 @@ import { coverForRoutine } from '../../data/covers';
 import { StackScreen } from '../../components/layout/TabScreen';
 import { ExerciseThumb } from '../exercises/ExerciseThumb';
 import { startRoutineWorkout } from '../workout/startWorkout';
+import { estimateMinutes } from '../../core/utils/programGenerator';
 
 export function RoutineDetailScreen({ routineId }: { routineId: string }) {
   const profile = useAppStore(selectProfile);
@@ -96,7 +97,7 @@ export function RoutineDetailScreen({ routineId }: { routineId: string }) {
         </View>
 
         <View style={styles.stats}>
-          <StatTile label="Duración" value={`~${routine.estimatedMinutes}`} unit="min" icon="time-outline" />
+          <StatTile label="Duración" value={`~${estimateMinutes(routine.exercises)}`} unit="min" icon="time-outline" />
           <StatTile label="Ejercicios" value={routine.exercises.length} icon="list-outline" />
           <StatTile label="Series" value={totalSets} icon="layers-outline" />
         </View>

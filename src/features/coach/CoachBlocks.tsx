@@ -13,6 +13,7 @@ import { AppText, Button, StatTile } from '../../components/ui';
 import { ExerciseThumb } from '../exercises/ExerciseThumb';
 import { MacroSummary } from '../nutrition/MacroSummary';
 import { startRoutineWorkout } from '../workout/startWorkout';
+import { estimateMinutes } from '../../core/utils/programGenerator';
 
 type RoutineBlockData = Extract<CoachBlock, { type: 'routine' }>;
 
@@ -39,7 +40,7 @@ function RoutineBlock({ block }: { block: RoutineBlockData }) {
   return (
     <BlockShell icon="barbell" title={routine.title}>
       <AppText variant="caption" color="textMuted" style={styles.meta}>
-        {routine.exercises.length} ejercicios · ~{routine.estimatedMinutes} min
+        {routine.exercises.length} ejercicios · ~{estimateMinutes(routine.exercises)} min
       </AppText>
       <View style={styles.routineList}>
         {visible.map((item, index) => {

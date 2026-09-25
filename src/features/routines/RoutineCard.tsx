@@ -8,6 +8,7 @@ import { routineCompatibility } from '../../core/utils/equipment';
 import { getExercise } from '../../data/catalog';
 import { coverForRoutine } from '../../data/covers';
 import { AppText, Badge, Card, CoverImage, IconButton } from '../../components/ui';
+import { estimateMinutes } from '../../core/utils/programGenerator';
 
 interface RoutineCardProps {
   routine: Routine;
@@ -45,7 +46,7 @@ export const RoutineCard = React.memo(function RoutineCard({ routine, profile, o
               {routine.title}
             </AppText>
             <AppText variant="caption" style={styles.onImageMuted}>
-              {routine.exercises.length} ejercicios · ~{routine.estimatedMinutes} min · {LEVEL_LABELS[routine.level]}
+              {routine.exercises.length} ejercicios · ~{estimateMinutes(routine.exercises)} min · {LEVEL_LABELS[routine.level]}
             </AppText>
           </View>
           <IconButton
