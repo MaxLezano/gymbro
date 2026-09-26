@@ -14,6 +14,7 @@ import { StackScreen } from '../../components/layout/TabScreen';
 import { profileFromDraft, useProfileDraft } from './profileDraft';
 import { CloudBackupSection } from './CloudBackupSection';
 import { ActivitySection, BasicsSection, DietaryConditionsSection, GoalSection, LivePreview, MeasurementsSection, TrainingSection } from './ProfileSections';
+import { Tour } from '../tour/tour';
 
 const PRIVACY_URL = 'https://maxlezano.github.io/gymbro/privacy.html';
 
@@ -51,6 +52,14 @@ export function ProfileScreen() {
   const leaveWith = (navigate: () => void) => {
     setLeaving(true);
     setTimeout(navigate, 0);
+  };
+
+  /** Closes the profile first; the tour starts only if it really closed (unsaved changes ask first). */
+  const replayTour = () => {
+    router.back();
+    setTimeout(() => {
+      if (!navigation.isFocused()) Tour.start();
+    }, 400);
   };
 
   const linkGoogle = async () => {
@@ -218,6 +227,7 @@ export function ProfileScreen() {
                 <ListRow icon="logo-google" title={draft.email} subtitle="Vinculada · toca para desvincular" onPress={unlinkGoogle} />
               )}
               <ListRow icon="notifications-outline" title="Notificaciones" subtitle="Entrenar, pesarte y tomar agua" onPress={() => router.push('/reminders')} />
+              <ListRow icon="school-outline" title="Ver tutorial" subtitle="Repasa para qué sirve cada sección" onPress={replayTour} />
               <ListRow icon="shield-checkmark-outline" title="Privacidad" subtitle="Qué datos usamos y cómo borrarlos" onPress={() => Linking.openURL(PRIVACY_URL)} />
               <ListRow icon="log-out-outline" title="Cerrar sesión" subtitle="Cambia de cuenta o entra con otra" onPress={signOut} />
               <ListRow

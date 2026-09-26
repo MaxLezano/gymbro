@@ -15,6 +15,7 @@ import { FeedbackService } from '../../core/services/feedback';
 import { startFreeWorkout, startRoutineWorkout } from '../workout/startWorkout';
 import { RoutineCard } from './RoutineCard';
 import { TrainingReminderCard } from './TrainingReminderCard';
+import { TourTarget } from '../tour/TourTarget';
 
 type Filter = 'for_you' | 'home' | 'gym';
 
@@ -92,12 +93,12 @@ export function TrainScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader title="Entrenar" subtitle="Elige, genera o crea tu sesión" right={<HeaderActions />} />
 
-        <View style={styles.quickRow}>
+        <TourTarget id="train.quick" style={styles.quickRow}>
           <QuickAction icon="flash-outline" title="Entreno libre" subtitle="Añade ejercicios sobre la marcha" onPress={startFreeWorkout} />
           <QuickAction icon="create-outline" title="Crear rutina" subtitle="Arma la tuya del catálogo" onPress={() => router.push('/routine-builder')} />
-        </View>
+        </TourTarget>
 
-        <View style={styles.section}>
+        <TourTarget id="train.generate" style={styles.section}>
           <SectionHeader title="Generar al instante" style={styles.padded} />
           <AppText variant="subhead" color="textMuted" style={[styles.padded, styles.hint]}>
             Rutina adaptada a tu equipo, nivel y objetivo. Toca un foco:
@@ -110,9 +111,9 @@ export function TrainScreen() {
             contentContainerStyle={styles.focusRow}
             renderItem={({ item }) => <Chip label={FOCUS_LABELS[item]} icon="sparkles-outline" onPress={() => generate(item)} />}
           />
-        </View>
+        </TourTarget>
 
-        <View style={[styles.section, styles.padded]}>
+        <TourTarget id="train.program" style={[styles.section, styles.padded]}>
           <SectionHeader
             title="Tu programa semanal"
             actionLabel={program.length ? 'Rehacer' : undefined}
@@ -133,7 +134,7 @@ export function TrainScreen() {
             />
           )}
           <TrainingReminderCard />
-        </View>
+        </TourTarget>
 
         {mine.length > 0 && (
           <View style={[styles.section, styles.padded]}>

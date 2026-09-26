@@ -27,6 +27,7 @@ import { BarChart, Sparkline } from './Charts';
 import { BodyWeightCard } from './BodyWeightCard';
 import { DeloadCard } from './DeloadCard';
 import { suggestDeload } from '../../core/utils/deload';
+import { TourTarget } from '../tour/TourTarget';
 
 /** Weekly hard-set landmarks per muscle group (Schoenfeld 2017; Israetel MEV-MRV). */
 const WEEKLY_SET_TARGET = { min: 10, max: 20 };
@@ -119,9 +120,9 @@ export function ProgressScreen() {
         <ScreenHeader title="Progreso" subtitle="Tu sobrecarga progresiva, semana a semana" right={<HeaderActions />} />
 
         {/* Body weight does not depend on workouts: it shows even before the first session. */}
-        <View style={[styles.body, styles.weight]}>
+        <TourTarget id="progress.weight" style={[styles.body, styles.weight]}>
           <BodyWeightCard />
-        </View>
+        </TourTarget>
 
         {history.length === 0 ? (
           <EmptyState

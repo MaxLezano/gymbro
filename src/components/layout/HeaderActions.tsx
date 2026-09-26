@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import { router } from 'expo-router';
 import { theme } from '../../core/theme';
 import { FeedbackService } from '../../core/services/feedback';
@@ -7,8 +7,9 @@ import { selectProfile, useAppStore } from '../../state/appStore';
 import { AppText, IconButton } from '../ui';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { TourTarget } from '../../features/tour/TourTarget';
 
-export function Avatar({ size = 38 }: { size?: number }) {
+export function Avatar({ size = 38, style }: { size?: number; style?: StyleProp<ViewStyle> }) {
   const profile = useAppStore(selectProfile);
   const name = profile.name.trim();
   const initials = name
@@ -30,6 +31,7 @@ export function Avatar({ size = 38 }: { size?: number }) {
         styles.avatar,
         { width: size, height: size, borderRadius: size / 2 },
         pressed && { opacity: 0.7 },
+        style,
       ]}
     >
       {profile.photoUrl ? (
@@ -45,19 +47,32 @@ export function Avatar({ size = 38 }: { size?: number }) {
   );
 }
 
-/** Coach + profile shortcuts shown at the top-right of every tab. */
-export function HeaderActions() {
+/** Coach + profile shortcuts shown at the top-right of every tab. `tour`: the copy the tutorial points at. */
+export function HeaderActions({ tour = false }: { tour?: boolean }) {
+  const coach = (
+    <IconButton
+      icon="chatbubble-ellipses"
+      variant="tonal"
+      size={38}
+      iconSize={18}
+      accessibilityLabel="Abrir Coach IA"
+      onPress={() => router.push('/coach')}
+    />
+  );
+  if (!tour) {
+    return (
+      <>
+        {coach}
+        <Avatar />
+      </>
+    );
+  }
   return (
     <>
-      <IconButton
-        icon="chatbubble-ellipses"
-        variant="tonal"
-        size={38}
-        iconSize={18}
-        accessibilityLabel="Abrir Coach IA"
-        onPress={() => router.push('/coach')}
-      />
-      <Avatar />
+      <TourTarget id="header.coach">{coach}</TourTarget>
+      <TourTarget id="header.profile" style={styles.tourAvatar}>
+        <Avatar style={styles.noMargin} />
+      </TourTarget>
     </>
   );
 }
@@ -70,6 +85,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 6,
+  },
+  // The margin moves to the tour target so its spotlight stays centered on the avatar.
+  tourAvatar: {
+    marginLeft: 6,
+  },
+  noMargin: {
+    marginLeft: 0,
   },
   initials: {
     fontWeight: '800',

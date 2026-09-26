@@ -7,6 +7,7 @@ import { theme } from '../../core/theme';
 import { FeedbackService } from '../../core/services/feedback';
 import { AppText } from '../ui';
 import { WorkoutMiniBar } from './WorkoutMiniBar';
+import { TourTarget } from '../../features/tour/TourTarget';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -24,7 +25,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   return (
     <View style={styles.wrapper}>
       <WorkoutMiniBar />
-      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]} accessibilityRole="tablist">
+      <TourTarget id="tabbar" style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 8) }]} accessibilityRole="tablist">
         {state.routes.map((route, index) => {
           const focused = state.index === index;
           const { options } = descriptors[route.key];
@@ -64,7 +65,7 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             </Pressable>
           );
         })}
-      </View>
+      </TourTarget>
     </View>
   );
 }

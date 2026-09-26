@@ -102,6 +102,8 @@ export interface UserProfile {
   trainingReminder?: { days: number[]; hour: number; minute: number };
   /** When the athlete dismissed the deload suggestion (ms): it stays hidden for a few weeks. */
   deloadSnoozedAt?: number;
+  /** When the first-run tutorial was finished or skipped (ms): it does not start on its own again. */
+  tourSeenAt?: number;
   // Optional Google account link (display only; data stays on device)
   email?: string;
   photoUrl?: string;

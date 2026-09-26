@@ -35,6 +35,7 @@ import { TabScreen } from '../../components/layout/TabScreen';
 import { HeaderActions } from '../../components/layout/HeaderActions';
 import { MacroSummary } from '../nutrition/MacroSummary';
 import { startRoutineWorkout } from '../workout/startWorkout';
+import { TourTarget } from '../tour/TourTarget';
 
 const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const COACH_PROMPTS = [
@@ -96,52 +97,54 @@ export function HomeScreen() {
               {firstName ? `Hola, ${firstName}` : 'Hola'}
             </AppText>
           </View>
-          <HeaderActions />
+          <HeaderActions tour />
         </View>
 
         <View style={styles.body}>
-          <Card>
-            <View style={styles.rowBetween}>
-              <AppText variant="headline">Tu semana</AppText>
-              <View style={styles.streak}>
-                <Ionicons name="flame" size={16} color={streak > 0 ? theme.colors.primary : theme.colors.textMuted} />
-                <AppText variant="subhead" color={streak > 0 ? 'primary' : 'textMuted'} style={styles.bold}>
-                  {streak > 0 ? `${streak} ${streak === 1 ? 'semana' : 'semanas'}` : 'Empieza tu racha hoy'}
-                </AppText>
+          <TourTarget id="home.week">
+            <Card>
+              <View style={styles.rowBetween}>
+                <AppText variant="headline">Tu semana</AppText>
+                <View style={styles.streak}>
+                  <Ionicons name="flame" size={16} color={streak > 0 ? theme.colors.primary : theme.colors.textMuted} />
+                  <AppText variant="subhead" color={streak > 0 ? 'primary' : 'textMuted'} style={styles.bold}>
+                    {streak > 0 ? `${streak} ${streak === 1 ? 'semana' : 'semanas'}` : 'Empieza tu racha hoy'}
+                  </AppText>
+                </View>
               </View>
-            </View>
-            <View style={styles.week}>
-              {WEEKDAYS.map((day, index) => {
-                const trained = week[index];
-                const isToday = index === todayIndex;
-                return (
-                  <View key={day} style={styles.day} accessible accessibilityLabel={`${day}${trained ? ', entrenado' : ''}${isToday ? ', hoy' : ''}`}>
-                    <AppText variant="caption" color={isToday ? 'text' : 'textMuted'} style={isToday && styles.bold}>
-                      {day}
-                    </AppText>
-                    <View style={[styles.dayDot, trained && styles.dayDotDone, isToday && !trained && styles.dayDotToday]}>
-                      {trained && <Ionicons name="checkmark" size={14} color={theme.colors.onPrimary} />}
+              <View style={styles.week}>
+                {WEEKDAYS.map((day, index) => {
+                  const trained = week[index];
+                  const isToday = index === todayIndex;
+                  return (
+                    <View key={day} style={styles.day} accessible accessibilityLabel={`${day}${trained ? ', entrenado' : ''}${isToday ? ', hoy' : ''}`}>
+                      <AppText variant="caption" color={isToday ? 'text' : 'textMuted'} style={isToday && styles.bold}>
+                        {day}
+                      </AppText>
+                      <View style={[styles.dayDot, trained && styles.dayDotDone, isToday && !trained && styles.dayDotToday]}>
+                        {trained && <Ionicons name="checkmark" size={14} color={theme.colors.onPrimary} />}
+                      </View>
                     </View>
-                  </View>
-                );
-              })}
-            </View>
-            <AppText variant="caption" color="textSecondary">
-              {trainedThisWeek === 0
-                ? 'Aún no entrenaste esta semana. ¡Hoy es buen día!'
-                : `${trainedThisWeek} ${trainedThisWeek === 1 ? 'sesión' : 'sesiones'} esta semana. Objetivo: 3–5.`}
-            </AppText>
-          </Card>
+                  );
+                })}
+              </View>
+              <AppText variant="caption" color="textSecondary">
+                {trainedThisWeek === 0
+                  ? 'Aún no entrenaste esta semana. ¡Hoy es buen día!'
+                  : `${trainedThisWeek} ${trainedThisWeek === 1 ? 'sesión' : 'sesiones'} esta semana. Objetivo: 3–5.`}
+              </AppText>
+            </Card>
+          </TourTarget>
 
           {!activeWorkout && nextDay && (
-            <View>
+            <TourTarget id="home.today">
               <SectionHeader title="Hoy toca" actionLabel="Ver programa" onAction={() => router.navigate('/train')} />
               <RoutineCard routine={nextDay} profile={profile} onStart={startRoutineWorkout} highlight={`Día ${nextDay.programDay} de ${program.length}`} />
-            </View>
+            </TourTarget>
           )}
 
           {!activeWorkout && !nextDay && suggestion.exercises.length > 0 && (
-            <View>
+            <TourTarget id="home.today">
               <SectionHeader title="Sugerido para hoy" actionLabel="Crear mi programa" onAction={() => router.push('/program')} />
               <Card padding={0} onPress={openSuggestion} accessibilityLabel={`Rutina sugerida ${suggestion.title}`}>
                 <CoverImage source={coverForRoutine(suggestion)} height={150}>
@@ -166,7 +169,7 @@ export function HomeScreen() {
                   />
                 </View>
               </Card>
-            </View>
+            </TourTarget>
           )}
 
           <Card>

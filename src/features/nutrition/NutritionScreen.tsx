@@ -13,6 +13,7 @@ import { MacroSummary } from './MacroSummary';
 import { TodayMenuCard } from './TodayMenuCard';
 import { WaterTile } from './WaterTile';
 import { ProteinPerMealTile } from './ProteinPerMealTile';
+import { TourTarget } from '../tour/TourTarget';
 
 /** Decimal comma, like the rest of the app. */
 const dec = (value: number) => value.toLocaleString('es-ES', { maximumFractionDigits: 1 });
@@ -87,25 +88,27 @@ export function NutritionScreen() {
         <ScreenHeader title="Nutrición" subtitle="Calculado con tu biometría, 100 % offline" right={<HeaderActions />} />
 
         <View style={styles.body}>
-          <Card>
-            <View style={styles.heroTop}>
-              <View style={styles.flex}>
-                <AppText variant="caption" color="textMuted">
-                  Meta diaria
-                </AppText>
-                <View style={styles.kcalRow}>
-                  <AppText style={styles.kcal}>{plan.targetCalories.toLocaleString('es-ES')}</AppText>
-                  <AppText variant="headline" color="textMuted">
-                    kcal
+          <TourTarget id="nutrition.plan">
+            <Card>
+              <View style={styles.heroTop}>
+                <View style={styles.flex}>
+                  <AppText variant="caption" color="textMuted">
+                    Meta diaria
                   </AppText>
+                  <View style={styles.kcalRow}>
+                    <AppText style={styles.kcal}>{plan.targetCalories.toLocaleString('es-ES')}</AppText>
+                    <AppText variant="headline" color="textMuted">
+                      kcal
+                    </AppText>
+                  </View>
+                  <Badge label={`${goal.title} · ${goal.short}`} tone="accent" icon="flag-outline" />
                 </View>
-                <Badge label={`${goal.title} · ${goal.short}`} tone="accent" icon="flag-outline" />
+                <Button label="Ajustar" icon="options-outline" variant="secondary" size="sm" onPress={() => router.push('/profile')} />
               </View>
-              <Button label="Ajustar" icon="options-outline" variant="secondary" size="sm" onPress={() => router.push('/profile')} />
-            </View>
-            <View style={styles.divider} />
-            <MacroSummary plan={plan} />
-          </Card>
+              <View style={styles.divider} />
+              <MacroSummary plan={plan} />
+            </Card>
+          </TourTarget>
 
           <TodayMenuCard plan={plan} conditions={conditions} />
 

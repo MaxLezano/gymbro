@@ -7,6 +7,7 @@ import { selectHydrated, useAppStore } from '../state/appStore';
 import { WorkoutBackgroundServices } from '../features/workout/WorkoutBackgroundServices';
 import { BootScreen } from '../components/layout/BootScreen';
 import { runBoot } from '../features/boot/preload';
+import { TourOverlay } from '../features/tour/TourOverlay';
 import { initErrorReporting, withErrorReporting } from '../core/services/errorReporting';
 
 initErrorReporting();
@@ -65,6 +66,7 @@ function RootLayout() {
           <Stack.Screen name="reminders" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         </Stack>
       ) : null}
+      {hydrated && !booting && <TourOverlay />}
       {booting && <BootScreen progress={bootProgress} />}
     </ThemeProvider>
   );

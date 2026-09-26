@@ -12,6 +12,7 @@ import { EXERCISE_ROW_HEIGHT, ExerciseRow } from './ExerciseRow';
 import { BodyPartFilterRow, SearchField } from './ExerciseFilters';
 import { useExerciseSearch } from './useExerciseSearch';
 import { useExerciseCollections } from './useExerciseCollections';
+import { TourTarget } from '../tour/TourTarget';
 
 const ITEM_HEIGHT = EXERCISE_ROW_HEIGHT + StyleSheet.hairlineWidth;
 
@@ -51,7 +52,9 @@ export function ExerciseCatalogScreen() {
   return (
     <TabScreen>
       <ScreenHeader title="Ejercicios" subtitle={`${exerciseCount().toLocaleString('es-ES')} movimientos con técnica guiada`} right={<HeaderActions />} />
-      <SearchField value={query} onChangeText={setQuery} placeholder="Buscar por nombre, músculo o equipo" />
+      <TourTarget id="exercises.search">
+        <SearchField value={query} onChangeText={setQuery} placeholder="Buscar por nombre, músculo o equipo" />
+      </TourTarget>
       <View>
         <BodyPartFilterRow
           value={effectiveBodyPart}
