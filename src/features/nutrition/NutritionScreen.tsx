@@ -14,6 +14,9 @@ import { TodayMenuCard } from './TodayMenuCard';
 import { WaterTile } from './WaterTile';
 import { ProteinPerMealTile } from './ProteinPerMealTile';
 
+/** Decimal comma, like the rest of the app. */
+const dec = (value: number) => value.toLocaleString('es-ES', { maximumFractionDigits: 1 });
+
 /** Horizontal scale with a marker, used for FFMI and the healthy weight range. */
 function ScaleBar({
   min,
@@ -147,7 +150,7 @@ export function NutritionScreen() {
           <Card>
             <SectionHeader title="Nivel muscular" />
             <View style={styles.ffmiTop}>
-              <AppText style={styles.ffmiValue}>{plan.ffmi}</AppText>
+              <AppText style={styles.ffmiValue}>{dec(plan.ffmi)}</AppText>
               <View style={styles.flex}>
                 <AppText variant="callout" style={styles.bold}>
                   {plan.ffmiCategory}
@@ -157,25 +160,25 @@ export function NutritionScreen() {
                 </AppText>
               </View>
             </View>
-            <ScaleBar {...ffmiRange} value={plan.ffmi} bands={ffmiBands} markerLabel={`FFMI ${plan.ffmi}, ${plan.ffmiCategory}`} />
+            <ScaleBar {...ffmiRange} value={plan.ffmi} bands={ffmiBands} markerLabel={`FFMI ${dec(plan.ffmi)}, ${plan.ffmiCategory}`} />
           </Card>
 
           <Card>
             <SectionHeader title="Peso" />
             <View style={styles.row}>
-              <StatTile label="Actual" value={profile.weightKg} unit="kg" caption={`IMC ${plan.bmi} · ${plan.bmiCategory}`} style={styles.innerTile} />
+              <StatTile label="Actual" value={profile.weightKg} unit="kg" caption={`IMC ${dec(plan.bmi)} · ${plan.bmiCategory}`} style={styles.innerTile} />
               <StatTile
                 label="Meta atlética"
                 value={plan.idealWeightKg}
                 unit="kg"
-                caption={weightDelta === 0 ? 'Estás en tu meta' : `${weightDelta > 0 ? '+' : ''}${weightDelta} kg`}
+                caption={weightDelta === 0 ? 'Estás en tu meta' : `${weightDelta > 0 ? '+' : ''}${dec(weightDelta)} kg`}
                 style={styles.innerTile}
                 iconColor={theme.colors.primary}
                 icon="flag-outline"
               />
             </View>
             <AppText variant="caption" color="textMuted" style={styles.rangeLabel}>
-              Rango saludable OMS para {profile.heightCm} cm: {plan.healthyWeightRange.min}–{plan.healthyWeightRange.max} kg
+              Rango saludable OMS para {profile.heightCm} cm: {dec(plan.healthyWeightRange.min)}–{dec(plan.healthyWeightRange.max)} kg
             </AppText>
             <ScaleBar
               min={Math.floor(plan.healthyWeightRange.min - 15)}
