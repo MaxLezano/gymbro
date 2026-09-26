@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { theme } from '../../core/theme';
 import { localDateKey } from '../../core/services/coach/mealPlan';
 import { addWater, GLASS_ML, logFor } from '../../core/utils/dailyLog';
@@ -29,9 +30,21 @@ export function WaterTile({ goalLiters }: { goalLiters: number }) {
     <View style={styles.tile}>
       <View style={styles.labelRow}>
         <Ionicons name={done ? 'water' : 'water-outline'} size={14} color={theme.colors.info} />
-        <AppText variant="caption" color="textMuted">
+        <AppText variant="caption" color="textMuted" style={styles.flex}>
           Agua
         </AppText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={profile.waterReminder ? 'Recordatorios de agua activos. Configurar' : 'Activar recordatorios de agua'}
+          hitSlop={10}
+          onPress={() => router.push('/reminders')}
+        >
+          <Ionicons
+            name={profile.waterReminder ? 'notifications' : 'notifications-outline'}
+            size={16}
+            color={profile.waterReminder ? theme.colors.info : theme.colors.textMuted}
+          />
+        </Pressable>
       </View>
       <View style={styles.valueRow} accessible accessibilityLabel={`Agua: ${liters(log.waterMl)} de ${liters(goalMl)} litros`}>
         <AppText variant="title" style={styles.tabular}>
@@ -81,6 +94,9 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     padding: theme.spacing.md,
     gap: 6,
+  },
+  flex: {
+    flex: 1,
   },
   labelRow: {
     flexDirection: 'row',

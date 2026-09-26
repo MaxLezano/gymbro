@@ -18,7 +18,7 @@ import { ExerciseThumb } from '../exercises/ExerciseThumb';
 import { useVoiceCommands, type ListeningState } from './useVoiceCommands';
 import { CoachSettingsSheet } from './CoachSettingsSheet';
 import { warmupExerciseIndex, warmupFor } from '../../core/utils/warmup';
-import { formatPlates, platesFor, usesPlates } from '../../core/utils/plates';
+import { BAR_KG, formatPlates, platesFor, usesPlates } from '../../core/utils/plates';
 
 interface Position {
   exerciseIndex: number;
@@ -374,7 +374,9 @@ export function CoachMode({ session, onFinish }: { session: WorkoutSession; onFi
   // Before the first working set of the session's first heavy lift: the warm-up ramp (never logged).
   const warmup =
     doneInExercise === 0 && position.setIndex === 0 && !isWorking && warmupExerciseIndex(session.exercises) === position.exerciseIndex ? warmupFor(log) : [];
-  const plates = usesPlates(exercise?.equipment) ? platesFor(set.weightKg) : null;
+  const barbell = usesPlates(exercise?.equipment);
+  const plates = barbell ? platesFor(set.weightKg) : null;
+  const barOnly = barbell && set.weightKg === BAR_KG;
   const hint = LISTENING_HINT[voice.state];
   const update = (patch: { weightKg?: number; reps?: number }) => appActions.updateSet(position.exerciseIndex, position.setIndex, patch);
 
@@ -435,6 +437,14 @@ export function CoachMode({ session, onFinish }: { session: WorkoutSession; onFi
               )}
               <ValueTile label="Repeticiones" value={`${set.reps}`} onMinus={() => update({ reps: Math.max(1, set.reps - 1) })} onPlus={() => update({ reps: set.reps + 1 })} />
             </View>
+            {barOnly && (
+              <View style={styles.plates}>
+                <Ionicons name="disc-outline" size={16} color={theme.colors.textMuted} />
+                <AppText variant="subhead" color="textSecondary">
+                  Solo la barra (20 kg), sin discos
+                </AppText>
+              </View>
+            )}
             {plates && (
               <View style={styles.plates} accessible accessibilityLabel={`Discos por lado: ${formatPlates(plates.perSide)}`}>
                 <Ionicons name="disc-outline" size={16} color={theme.colors.textMuted} />
@@ -446,10 +456,18 @@ export function CoachMode({ session, onFinish }: { session: WorkoutSession; onFi
             )}
             {/* Below the weight controls: appearing above them would move the buttons under the finger. */}
             {warmup.length > 0 && (
-              <View style={styles.warmup} accessible accessibilityLabel={`Antes, calienta: ${warmup.map((item) => `${item.weightKg} kilos por ${item.reps}`).join(', ')}`}>
-                <Ionicons name="flame-outline" size={16} color={theme.colors.primary} />
-                <AppText variant="subhead" color="textSecondary" style={styles.flexShrink}>
-                  Antes, calienta: {warmup.map((item) => `${item.weightKg.toLocaleString('es-ES')} kg × ${item.reps}`).join(' · ')}
+              <View style={styles.warmup} accessible accessibilityLabel={`Calentamiento antes de la primera serie: ${warmup.map((item) => `${item.weightKg} kilos por ${item.reps}`).join(', ')}`}>
+                <View style={styles.warmupTitle}>
+                  <Ionicons name="flame-outline" size={16} color={theme.colors.primary} />
+                  <AppText variant="callout" style={styles.platesBold}>
+                    Calentamiento antes de la 1.ª serie
+                  </AppText>
+                </View>
+                <AppText variant="subhead" color="textSecondary">
+                  {warmup.map((item) => `${item.weightKg.toLocaleString('es-ES')} kg × ${item.reps}`).join('  ·  ')}
+                </AppText>
+                <AppText variant="caption" color="textMuted">
+                  Series livianas para entrar en calor: no se registran.
                 </AppText>
               </View>
             )}
@@ -503,11 +521,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.text,
   },
-  warmup: {
+  warmupTitle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
-    alignSelf: 'center',
+  },
+  warmup: {
+    gap: 4,
+    alignSelf: 'stretch',
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.radius.md,

@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { theme } from '../../core/theme';
 import type { ExperienceLevel, Routine, RoutineExercise } from '../../core/types';
 import { getExercise } from '../../data/catalog';
-import { estimateMinutes } from '../../core/utils/programGenerator';
+import { adjustSetsForLevel, estimateMinutes } from '../../core/utils/programGenerator';
 import { createId, formatRest } from '../../core/utils/workout';
 import { appActions, findRoutine, selectProfile, useAppStore } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
@@ -157,13 +157,16 @@ export function RoutineBuilderScreen({ editId, fromId }: { editId?: string; from
             </AppText>
             <SegmentedControl<ExperienceLevel>
               value={draft.level}
-              onChange={(level) => setDraft((prev) => ({ ...prev, level }))}
+              onChange={(level) => setDraft((prev) => ({ ...prev, level, exercises: adjustSetsForLevel(prev.exercises, prev.level, level) }))}
               options={[
                 { value: 'beginner', label: 'Principiante' },
                 { value: 'intermediate', label: 'Intermedio' },
                 { value: 'advanced', label: 'Avanzado' },
               ]}
             />
+            <AppText variant="caption" color="textMuted">
+              Cambiar el nivel suma o quita una serie a cada ejercicio.
+            </AppText>
           </View>
 
           <View style={styles.listHeader}>

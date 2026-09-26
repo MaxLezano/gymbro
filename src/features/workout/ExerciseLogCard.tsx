@@ -8,7 +8,7 @@ import { formatRest } from '../../core/utils/workout';
 import { getExercise } from '../../data/catalog';
 import type { SetLog, WorkoutExerciseLog } from '../../core/types';
 import type { WarmupSet } from '../../core/utils/warmup';
-import { formatPlates, platesFor, usesPlates } from '../../core/utils/plates';
+import { BAR_KG, formatPlates, platesFor, usesPlates } from '../../core/utils/plates';
 import { appActions } from '../../state/appStore';
 import { FeedbackService } from '../../core/services/feedback';
 import { ActionSheet, AppText, Button, Chip, IconButton, type SheetAction } from '../../components/ui';
@@ -172,6 +172,7 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
   // Plates for the next set to do (the one the athlete is about to load).
   const nextSet = log.sets.find((set) => !set.completed);
   const plates = usesPlates(exercise?.equipment) && nextSet ? platesFor(nextSet.weightKg) : null;
+  const barOnly = usesPlates(exercise?.equipment) && nextSet?.weightKg === BAR_KG;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuActions: SheetAction[] = [
@@ -265,10 +266,10 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
           <View style={styles.warmupTitle}>
             <Ionicons name="flame-outline" size={14} color={theme.colors.primary} />
             <AppText variant="caption" color="textSecondary" style={styles.bold}>
-              Calentamiento
+              Calentamiento antes de la 1.ª serie
             </AppText>
             <AppText variant="caption" color="textMuted">
-              · no cuenta como serie
+              · no se registra
             </AppText>
           </View>
           <View style={styles.warmupSets}>
@@ -323,6 +324,14 @@ export const ExerciseLogCard = React.memo(function ExerciseLogCard({
         />
       ))}
 
+      {barOnly && (
+        <View style={styles.plates}>
+          <Ionicons name="disc-outline" size={14} color={theme.colors.textMuted} />
+          <AppText variant="caption" color="textSecondary">
+            Serie {nextSet!.setNumber}: solo la barra (20 kg)
+          </AppText>
+        </View>
+      )}
       {plates && (
         <View style={styles.plates}>
           <Ionicons name="disc-outline" size={14} color={theme.colors.textMuted} />

@@ -217,6 +217,7 @@ export function ProfileScreen() {
               {account?.kind === 'local' && !!draft.email && (
                 <ListRow icon="logo-google" title={draft.email} subtitle="Vinculada · toca para desvincular" onPress={unlinkGoogle} />
               )}
+              <ListRow icon="notifications-outline" title="Notificaciones" subtitle="Entrenar, pesarte y tomar agua" onPress={() => router.push('/reminders')} />
               <ListRow icon="shield-checkmark-outline" title="Privacidad" subtitle="Qué datos usamos y cómo borrarlos" onPress={() => Linking.openURL(PRIVACY_URL)} />
               <ListRow icon="log-out-outline" title="Cerrar sesión" subtitle="Cambia de cuenta o entra con otra" onPress={signOut} />
               <ListRow

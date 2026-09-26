@@ -35,6 +35,7 @@ export function WorkoutBackgroundServices() {
     if (url === '/workout' && appActions.getActiveWorkout()) router.push('/workout');
     else if (url === '/progress') router.navigate('/progress');
     else if (url === '/train') router.navigate('/train');
+    else if (url === '/nutrition') router.navigate('/nutrition');
   }, [lastResponse]);
 
   const endsAt = restTimer?.endsAt;

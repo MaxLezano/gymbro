@@ -13,6 +13,7 @@ import {
 import { toggleFavorite } from '../core/utils/exerciseLists';
 import { recordWeight } from '../core/utils/weightLog';
 import { localDateKey } from '../core/services/coach/mealPlan';
+import { withoutStalePrograms } from '../core/utils/program';
 
 export interface AppState {
   hydrated: boolean;
@@ -131,7 +132,10 @@ const SIGN_IN_SYNC_TIMEOUT_MS = 10_000;
 // so it is not uploaded straight back).
 CloudSync.bind({
   read: () => ({ profile: state.profile, customRoutines: state.customRoutines, history: state.history }),
-  apply(patch: Partial<LocalData>) {
+  apply(merged: Partial<LocalData>) {
+    // Two devices may each have generated a program before syncing: only the newest one stays.
+    const cleaned = merged.customRoutines ? withoutStalePrograms(merged.customRoutines) : undefined;
+    const patch = cleaned ? { ...merged, customRoutines: cleaned } : merged;
     setState((prev) => {
       const account =
         patch.profile && prev.account
@@ -141,7 +145,9 @@ CloudSync.bind({
       return { ...prev, ...patch, account };
     });
     if (patch.profile) Storage.saveProfile(patch.profile, { silent: true });
-    if (patch.customRoutines) Storage.saveCustomRoutines(patch.customRoutines, { silent: true });
+    if (merged.customRoutines) Storage.saveCustomRoutines(merged.customRoutines, { silent: true });
+    // A normal (uploaded) save records the stale program as deleted on every device.
+    if (cleaned && merged.customRoutines && cleaned.length < merged.customRoutines.length) Storage.saveCustomRoutines(cleaned);
     if (patch.history) Storage.saveHistory(patch.history, { silent: true });
   },
 });
@@ -165,7 +171,9 @@ export const appActions = {
     await Accounts.setCurrent(account.id);
     const persisted = await Storage.loadAll();
     await CloudSync.attach(account, persisted);
-    setState((prev) => ({ ...prev, ...persisted, restTimer: null, accounts, account, hydrated: true }));
+    const customRoutines = withoutStalePrograms(persisted.customRoutines);
+    setState((prev) => ({ ...prev, ...persisted, customRoutines, restTimer: null, accounts, account, hydrated: true }));
+    if (customRoutines.length < persisted.customRoutines.length) Storage.saveCustomRoutines(customRoutines);
     CloudSync.syncNow();
   },
 

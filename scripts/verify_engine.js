@@ -753,6 +753,29 @@ console.log('\n8. Accounts (per-device data spaces)');
     assert(suggestDeload(stalled, { now, snoozedAt: now - DELOAD_SNOOZE_MS - DAY }) !== null, 'snooze never ends');
     assert(suggestDeload(stalled.slice(-4), { now }) === null, 'irregular training');
   });
+  test('level changes the routine: sets, reps and rest', () => {
+    const { generateRoutine, adjustSetsForLevel } = src('core/utils/programGenerator.ts');
+    const base = { trainingLocation: 'gym', homeEquipment: [], fitnessGoal: 'muscle_gain' };
+    const sets = (experience) => generateRoutine({ focus: 'upper', profile: { ...base, experience }, maxExercises: 6 }).exercises.reduce((sum, item) => sum + item.targetSets, 0);
+    assert(sets('beginner') < sets('intermediate') && sets('intermediate') < sets('advanced'), `sets ${sets('beginner')}/${sets('intermediate')}/${sets('advanced')}`);
+    const beginner = generateRoutine({ focus: 'upper', profile: { ...base, experience: 'beginner' }, maxExercises: 6 }).exercises[0];
+    assert(beginner.targetReps === '8-12', `beginner reps ${beginner.targetReps}`);
+    const routine = [{ exerciseId: '0025', targetSets: 3, targetReps: '8', restSeconds: 90 }, { exerciseId: '0027', targetSets: 1, targetReps: '8', restSeconds: 90 }];
+    assert(adjustSetsForLevel(routine, 'intermediate', 'advanced').map((item) => item.targetSets).join() === '4,2', 'up');
+    assert(adjustSetsForLevel(routine, 'intermediate', 'beginner').map((item) => item.targetSets).join() === '2,1', 'down, never below 1');
+  });
+  test('water reminders fire every N hours inside the window', () => {
+    const { waterHours } = src('core/utils/waterSchedule.ts');
+    assert(waterHours({ everyHours: 2, fromHour: 9, toHour: 21 }).join() === '9,11,13,15,17,19,21', 'every 2 h');
+    assert(waterHours({ everyHours: 3, fromHour: 8, toHour: 20 }).join() === '8,11,14,17,20', 'every 3 h');
+  });
+  test('only the newest program stays when two devices merged theirs', () => {
+    const { programRoutines, withoutStalePrograms } = src('core/utils/program.ts');
+    const day = (programId, programDay, createdAt) => ({ id: `${programId}${programDay}`, programId, programDay, createdAt, exercises: [] });
+    const merged = [day('old', 1, 100), day('old', 2, 101), day('new', 1, 200), day('new', 2, 201), { id: 'mine', exercises: [], createdAt: 50 }];
+    assert(programRoutines(merged).map((r) => r.id).join() === 'new1,new2', programRoutines(merged).map((r) => r.id).join());
+    assert(withoutStalePrograms(merged).map((r) => r.id).join() === 'new1,new2,mine', 'own routines are kept');
+  });
   test('every focus named in a request is kept', () => {
     const focuses = parseQuery('Armame una rutina de espalda y biceps').focuses;
     assert(JSON.stringify(focuses) === JSON.stringify(['back', 'arms']), `focuses: ${focuses}`);

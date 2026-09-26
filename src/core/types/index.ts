@@ -94,6 +94,10 @@ export interface UserProfile {
   weightLog?: { date: string; kg: number }[];
   /** Weekly local notification reminding to weigh in. */
   weighInReminder?: boolean;
+  /** When the weigh-in reminder fires (expo weekday, 1 = Sunday). Defaults to Monday 8:00. */
+  weighInSchedule?: { day: number; hour: number; minute: number };
+  /** Optional water reminders: every N hours between two hours of the day. */
+  waterReminder?: { everyHours: number; fromHour: number; toHour: number };
   /** Weekly training reminders: expo weekdays (1 = Sunday) and local time. */
   trainingReminder?: { days: number[]; hour: number; minute: number };
   /** When the athlete dismissed the deload suggestion (ms): it stays hidden for a few weeks. */

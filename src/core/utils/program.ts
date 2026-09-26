@@ -1,11 +1,30 @@
 import type { Routine, UserProfile, WorkoutSession } from '../types';
 import { sessionDate } from './workout';
 
+/**
+ * Id of the current program: the most recently created one. Two devices that each
+ * generated a program before syncing end up with both after the cloud merge.
+ */
+export function currentProgramId(customRoutines: readonly Routine[]): string | undefined {
+  let best: Routine | undefined;
+  for (const routine of customRoutines) {
+    if (routine.programId && (!best || (routine.createdAt ?? 0) > (best.createdAt ?? 0))) best = routine;
+  }
+  return best?.programId;
+}
+
 /** Routines of the current weekly program, ordered by day. */
 export function programRoutines(customRoutines: Routine[]): Routine[] {
+  const current = currentProgramId(customRoutines);
   return customRoutines
-    .filter((routine) => routine.programId)
+    .filter((routine) => routine.programId && routine.programId === current)
     .sort((a, b) => (a.programDay ?? 0) - (b.programDay ?? 0));
+}
+
+/** Drops routines of older programs (true when something was removed). */
+export function withoutStalePrograms(customRoutines: Routine[]): Routine[] {
+  const current = currentProgramId(customRoutines);
+  return customRoutines.filter((routine) => !routine.programId || routine.programId === current);
 }
 
 /**

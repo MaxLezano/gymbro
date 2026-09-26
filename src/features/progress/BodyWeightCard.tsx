@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
 import { localDateKey } from '../../core/services/coach/mealPlan';
-import { Reminders } from '../../core/services/reminders';
+import { DEFAULT_WEIGH_IN } from '../../core/services/reminders';
+import { ReminderLink } from '../reminders/ReminderLink';
 import { FeedbackService } from '../../core/services/feedback';
 import { recordWeight, weighInDue, weightChange } from '../../core/utils/weightLog';
 import { appActions, selectProfile, useAppStore } from '../../state/appStore';
 import { AppText, Button, Card, SectionHeader } from '../../components/ui';
 import { WeightChart } from './WeightChart';
+
+const DAY_NAMES: Record<number, string> = { 1: 'domingos', 2: 'lunes', 3: 'martes', 4: 'miércoles', 5: 'jueves', 6: 'viernes', 7: 'sábados' };
 
 const signed = (kg: number) => `${kg > 0 ? '+' : ''}${kg.toLocaleString('es-ES', { maximumFractionDigits: 1 })} kg`;
 
@@ -20,6 +23,10 @@ export function BodyWeightCard() {
   const [draft, setDraft] = useState(String(profile.weightKg));
   const change = weightChange(log, 28);
   const due = weighInDue(log, today);
+  const schedule = profile.weighInSchedule ?? DEFAULT_WEIGH_IN;
+  const reminderLabel = profile.weighInReminder
+    ? `Recordatorio: los ${DAY_NAMES[schedule.day]} a las ${String(schedule.hour).padStart(2, '0')}:${String(schedule.minute).padStart(2, '0')}`
+    : 'Recordarme pesarme cada semana';
 
   const save = () => {
     const kg = Number(draft.replace(',', '.'));
@@ -31,16 +38,6 @@ export function BodyWeightCard() {
     FeedbackService.success();
     // The profile weight drives calories and macros: it follows the latest weigh-in.
     appActions.patchProfile({ weightKg: Math.round(kg * 10) / 10, weightLog: recordWeight(log, today, kg) });
-  };
-
-  const toggleReminder = async (enabled: boolean) => {
-    FeedbackService.selection();
-    const ok = await Reminders.setWeighIn(enabled);
-    if (!ok) {
-      Alert.alert('Notificaciones desactivadas', 'Actívalas en los ajustes del teléfono para recibir el recordatorio.');
-      return;
-    }
-    appActions.patchProfile({ weighInReminder: enabled });
   };
 
   return (
@@ -78,24 +75,10 @@ export function BodyWeightCard() {
             kg
           </AppText>
         </View>
-        <Button label={due ? 'Registrar hoy' : 'Actualizar hoy'} icon="checkmark" size="md" style={styles.flex} onPress={save} />
+        <Button label={due ? 'Registrar' : 'Actualizar'} icon="checkmark" variant="tonal" size="sm" onPress={save} />
       </View>
 
-      <View style={styles.reminder}>
-        <View style={styles.flex}>
-          <AppText variant="callout">Recordarme los lunes</AppText>
-          <AppText variant="caption" color="textMuted">
-            Aviso a las 8:00 para pesarte en ayunas
-          </AppText>
-        </View>
-        <Switch
-          value={!!profile.weighInReminder}
-          onValueChange={toggleReminder}
-          trackColor={{ true: theme.colors.primary, false: theme.colors.surfacePressed }}
-          thumbColor={theme.colors.text}
-          accessibilityLabel="Recordatorio semanal para pesarte"
-        />
-      </View>
+      <ReminderLink label={reminderLabel} active={!!profile.weighInReminder} style={styles.reminder} />
     </Card>
   );
 }
@@ -114,10 +97,11 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
   },
   inputBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    height: 44,
+    height: 40,
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.radius.sm,
     backgroundColor: theme.colors.surfaceAlt,
@@ -131,11 +115,8 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   reminder: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.md,
     marginTop: theme.spacing.md,
-    paddingTop: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.border,
   },

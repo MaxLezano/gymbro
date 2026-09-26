@@ -88,13 +88,20 @@ const TEMPLATES: Record<TrainingFocus, SlotId[]> = {
 };
 
 const EXERCISE_LIMIT: Record<ExperienceLevel, number> = { beginner: 4, intermediate: 5, advanced: 6 };
-const SETS: Record<ExperienceLevel, number> = { beginner: 3, intermediate: 3, advanced: 4 };
+/** Working sets per exercise: beginners grow on less volume, advanced lifters need more. */
+const SETS: Record<ExperienceLevel, { compound: number; isolation: number }> = {
+  beginner: { compound: 3, isolation: 2 },
+  intermediate: { compound: 3, isolation: 3 },
+  advanced: { compound: 4, isolation: 3 },
+};
 
 function prescription(goal: FitnessGoal, level: ExperienceLevel, compound: boolean, focus: TrainingFocus) {
   if (focus === 'cardio' || focus === 'core') {
     return { reps: goal === 'fat_loss' ? '15-20' : '12-15', rest: 45 };
   }
   if (goal === 'fat_loss') return { reps: compound ? '8-12' : '12-15', rest: compound ? 75 : 45 };
+  // Beginners: moderate loads and more reps while they learn the movement.
+  if (level === 'beginner') return { reps: compound ? '8-12' : '12-15', rest: compound ? 90 : 60 };
   if (goal === 'aggressive_bulk' || level === 'advanced') {
     return { reps: compound ? '5-8' : '8-12', rest: compound ? 150 : 75 };
   }
@@ -189,7 +196,7 @@ export function generateRoutine({ focus, profile, location, maxExercises, target
     exercises.push({
       exerciseId: pick.id,
       exerciseName: pick.displayName,
-      targetSets: SETS[level],
+      targetSets: slot.compound ? SETS[level].compound : SETS[level].isolation,
       targetReps: reps,
       restSeconds: rest,
     });
@@ -216,6 +223,15 @@ export function generateRoutine({ focus, profile, location, maxExercises, target
  * Realistic session length: ~45 s per working set plus its rest, ~90 s to set up
  * each exercise (plates, bench, warm-up set) and 5 min of general warm-up.
  */
+const LEVEL_RANK: Record<ExperienceLevel, number> = { beginner: 0, intermediate: 1, advanced: 2 };
+
+/** Changing a routine's level shifts every exercise one set per step (between 1 and 6 sets). */
+export function adjustSetsForLevel(exercises: RoutineExercise[], from: ExperienceLevel, to: ExperienceLevel): RoutineExercise[] {
+  const delta = LEVEL_RANK[to] - LEVEL_RANK[from];
+  if (delta === 0) return exercises;
+  return exercises.map((item) => ({ ...item, targetSets: Math.max(1, Math.min(6, item.targetSets + delta)) }));
+}
+
 export function estimateMinutes(exercises: RoutineExercise[]): number {
   const seconds = exercises.reduce((sum, item) => sum + item.targetSets * (45 + item.restSeconds) + 90, 0);
   return Math.max(10, Math.round((seconds / 60 + 5) / 5) * 5);
