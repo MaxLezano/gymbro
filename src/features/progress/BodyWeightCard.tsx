@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../core/theme';
 import { localDateKey } from '../../core/services/coach/mealPlan';
@@ -20,7 +20,15 @@ export function BodyWeightCard() {
   const profile = useAppStore(selectProfile);
   const log = profile.weightLog ?? [];
   const today = localDateKey();
-  const [draft, setDraft] = useState(String(profile.weightKg));
+  // Always one decimal with a comma, as a scale reads ("92,0").
+  const format = (kg: number) => kg.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const [draft, setDraft] = useState(() => format(profile.weightKg));
+  const nudge = (delta: number) => {
+    const current = Number(draft.replace(',', '.'));
+    const next = Math.round(((Number.isFinite(current) ? current : profile.weightKg) + delta) * 10) / 10;
+    FeedbackService.lightTap();
+    setDraft(format(Math.min(300, Math.max(30, next))));
+  };
   const change = weightChange(log, 28);
   const due = weighInDue(log, today);
   const schedule = profile.weighInSchedule ?? DEFAULT_WEIGH_IN;
@@ -60,20 +68,28 @@ export function BodyWeightCard() {
       )}
 
       <View style={styles.entry}>
-        <View style={styles.inputBox}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            keyboardType="decimal-pad"
-            maxLength={5}
-            selectTextOnFocus
-            style={styles.input}
-            accessibilityLabel="Peso de hoy en kilos"
-            selectionColor={theme.colors.primary}
-          />
-          <AppText variant="subhead" color="textMuted">
-            kg
-          </AppText>
+        <View style={styles.stepper}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Restar 100 gramos" onPress={() => nudge(-0.1)} hitSlop={6} style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}>
+            <Ionicons name="remove" size={18} color={theme.colors.text} />
+          </Pressable>
+          <View style={styles.valueBox}>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              keyboardType="decimal-pad"
+              maxLength={5}
+              selectTextOnFocus
+              style={styles.input}
+              accessibilityLabel="Peso de hoy en kilos"
+              selectionColor={theme.colors.primary}
+            />
+            <AppText variant="subhead" color="textMuted">
+              kg
+            </AppText>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Sumar 100 gramos" onPress={() => nudge(0.1)} hitSlop={6} style={({ pressed }) => [styles.stepButton, pressed && styles.pressed]}>
+            <Ionicons name="add" size={18} color={theme.colors.text} />
+          </Pressable>
         </View>
         <Button label={due ? 'Registrar' : 'Actualizar'} icon="checkmark" variant="tonal" size="sm" onPress={save} />
       </View>
@@ -96,23 +112,39 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
     marginTop: theme.spacing.md,
   },
-  inputBox: {
+  stepper: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    height: 40,
-    paddingHorizontal: theme.spacing.md,
+    height: 44,
     borderRadius: theme.radius.sm,
     backgroundColor: theme.colors.surfaceAlt,
+    overflow: 'hidden',
+  },
+  stepButton: {
+    width: 44,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: {
+    backgroundColor: theme.colors.surfacePressed,
+  },
+  valueBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    gap: 4,
   },
   input: {
-    minWidth: 56,
     color: theme.colors.text,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     fontVariant: ['tabular-nums'],
+    textAlign: 'right',
     padding: 0,
+    minWidth: 44,
   },
   reminder: {
     marginTop: theme.spacing.md,

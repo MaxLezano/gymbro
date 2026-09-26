@@ -77,7 +77,8 @@ export function StatTile({
       </View>
       <View style={styles.statValueRow}>
         <AppText variant="title" style={styles.tabular} numberOfLines={1} adjustsFontSizeToFit>
-          {value}
+          {/* Decimal comma, like the rest of the app ("22,2", not "22.2"). */}
+          {typeof value === 'number' ? value.toLocaleString('es-ES', { maximumFractionDigits: 1 }) : value}
         </AppText>
         {unit && (
           <AppText variant="subhead" color="textMuted">

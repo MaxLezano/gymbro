@@ -12,6 +12,7 @@ import { HeaderActions } from '../../components/layout/HeaderActions';
 import { MacroSummary } from './MacroSummary';
 import { TodayMenuCard } from './TodayMenuCard';
 import { WaterTile } from './WaterTile';
+import { ProteinPerMealTile } from './ProteinPerMealTile';
 
 /** Horizontal scale with a marker, used for FFMI and the healthy weight range. */
 function ScaleBar({
@@ -107,7 +108,7 @@ export function NutritionScreen() {
 
           <View style={styles.row}>
             <WaterTile goalLiters={plan.waterLitersDaily} />
-            <StatTile label="Por comida" value={Math.round(plan.proteinGrams / meals)} unit="g prot." icon="restaurant-outline" caption={`${meals} comidas/día`} />
+            <ProteinPerMealTile grams={Math.round(plan.proteinGrams / meals)} meals={meals} />
           </View>
 
           <Button
