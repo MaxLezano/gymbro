@@ -77,6 +77,10 @@ const EXERCISE_ALIASES: [RegExp, string][] = [
   [/gemelo|pantorrilla|calf/, '0417'],
 ];
 
+/** Everyday foods and eating words: "¿yogur con banana está bien para merendar?" is a nutrition question. */
+const FOOD =
+  /merend|desayun|almorz|cenar|picar|picoteo|colacion|snack|antojo|hambre|ayuno|comid|comer|comi\b|aliment|yogur|banana|platano|manzana|mandarina|naranja|\bpera\b|fruta|verdura|ensalada|cereal|granola|avena|nuez|nueces|almendra|mani\b|frutos secos|semilla|huevo|\bclaras?\b|pollo|carne|pescado|atun|salmon|cerdo|jamon|arroz|pasta|fideo|\bpapas?\b|batata|legumbre|lenteja|garbanzo|\bpan\b|tostada|galleta|leche|queso|\bmate\b|cafe|jugo|gaseosa|alcohol|cerveza|dulce|azucar|chocolate|helado|pizza|hamburguesa|suplement|creatina|whey|batido|licuado/;
+
 /** Anything the coach is for: training, the body, food, recovery, habits and the app. */
 const DOMAIN =
   /tecnica|consejo|progresion|mejorar|aprender|ensen|explica|entren|ejercici|gym|gimnasio|muscul|fuerza|pesa|kilo|\bkg\b|serie|repeti|descans|cardio|corr(er|o)|camin|trot|bici|nad(ar|o)|estir|calent|calient|movilidad|flexib|lesion|dolor|agujeta|recuper|dorm|sueno|cansad|hidrat|agua|salud|energia|motiva|habito|constancia|disciplina|app|gymbro|perfil|programa|rutina|coach|entrenador|progres|record|nutri|dieta|kcal|panza|barriga|abdomen|cintura|adelgaz|bajar de peso|perder peso|engord|ganar peso|volumen|definic|tonific|postura|cuerpo|fisico|atleta|deport|objetivo|\bmeta\b|vegetarian|vegan|en casa|peso|altura|imc|grasa|masa|cuanto (tiempo|dias)|cuantas veces|frecuencia|semana|principiante|nivel|maquina|mancuerna|barra|banco|polea|banda|kettlebell|smith|prensa/;
@@ -94,7 +98,7 @@ export function isOffTopic(raw: string, query: ParsedQuery = parseQuery(raw), fo
   if (!text || query.intent !== 'general' || query.focus || query.exerciseId) return false;
   // "Hazla más corta", "cámbiala", "otra": they refer to the previous answer.
   if (followUp && FOLLOW_UP.test(text)) return false;
-  return !DOMAIN.test(text) && !SMALL_TALK.test(text);
+  return !DOMAIN.test(text) && !FOOD.test(text) && !SMALL_TALK.test(text);
 }
 
 /** Short edits to the coach's previous answer, only meaningful inside a conversation. */
@@ -161,7 +165,7 @@ export function parseQuery(raw: string): ParsedQuery {
     intent = 'routine';
   } else if (
     // "como" alone also means "how", so only match it in eating phrases.
-    /comer|comida|dieta|menu|caloria|macro|proteina|carbohidrato|desayun|almuerz|cena|merienda|suplement|creatina|batido|que como|pre.?entreno|post.?entreno|(antes|despues) de entrenar/.test(text)
+    (/comer|comida|dieta|menu|caloria|macro|proteina|carbohidrato|desayun|almuerz|cena|merienda|suplement|creatina|batido|que como|pre.?entreno|post.?entreno|(antes|despues) de entrenar/.test(text) || FOOD.test(text))
   ) {
     intent = 'nutrition';
   } else if (/grasa corporal|composicion|ffmi|masa magra|imc|peso ideal|cuanto deberia pesar|mi peso/.test(text)) {

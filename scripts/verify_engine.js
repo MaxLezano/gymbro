@@ -776,6 +776,19 @@ console.log('\n8. Accounts (per-device data spaces)');
     assert(programRoutines(merged).map((r) => r.id).join() === 'new1,new2', programRoutines(merged).map((r) => r.id).join());
     assert(withoutStalePrograms(merged).map((r) => r.id).join() === 'new1,new2,mine', 'own routines are kept');
   });
+  test('everyday food questions reach the coach as nutrition', () => {
+    const food = [
+      'Yogurt con una banana, 1 manzana, una mandarina, cereal de maíz y nueces está bien para merendar?',
+      '¿Puedo cenar pizza el fin de semana?',
+      'tomar mate antes de entrenar está bien?',
+      '¿Cuántos huevos puedo comer por día?',
+    ];
+    const blocked = food.filter((text) => isOffTopic(text));
+    assert(blocked.length === 0, `refused: ${blocked}`);
+    assert(food.every((text) => parseQuery(text).intent === 'nutrition'), food.map((t) => parseQuery(t).intent).join());
+    assert(parseQuery('¿te puedo preguntar algo? espera, aclara la técnica').intent !== 'nutrition', 'pronoun/espera/aclara are not food');
+    assert(isOffTopic('cuál es la capital de Francia'), 'still refuses clearly unrelated questions');
+  });
   test('every focus named in a request is kept', () => {
     const focuses = parseQuery('Armame una rutina de espalda y biceps').focuses;
     assert(JSON.stringify(focuses) === JSON.stringify(['back', 'arms']), `focuses: ${focuses}`);
